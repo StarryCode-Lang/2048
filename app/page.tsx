@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { spawnRandomTile } from "./game-random";
-import { copyBoard, countEmpty, emptyBoard, hasMoves, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game-engine";
-import { AI_SPEEDS, aiBudgetFor, isEndgameSearch } from "./ai-timing";
-import { LANGUAGES, TRANSLATIONS, isLanguage, type Language } from "./i18n";
+import { spawnRandomTile } from "./game/random";
+import { copyBoard, countEmpty, emptyBoard, hasMoves, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game/engine";
+import { AI_SPEEDS, aiBudgetFor, isEndgameSearch } from "./ai/timing";
+import { LANGUAGES, TRANSLATIONS, isLanguage, type Language } from "./i18n/messages";
 import {
   getPreferredReplay,
   getReplaySummary,
@@ -18,7 +18,7 @@ import {
   type ReplayEvent,
   type ReplaySummary,
   type ReplayTrace,
-} from "./replay-log";
+} from "./replay/log";
 
 type Snapshot = { board: Board; score: number; moves: number; rngState: number };
 type AiCorner = 0 | 1 | 2 | 3;
@@ -547,7 +547,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const worker = new Worker(new URL("./ai-worker.ts", import.meta.url), { type: "module" });
+    const worker = new Worker(new URL("./ai/worker.ts", import.meta.url), { type: "module" });
     aiWorkerRef.current = worker;
     worker.onmessage = (event: MessageEvent<AiDecision & { id: number }>) => {
       const pending = aiPendingRef.current;

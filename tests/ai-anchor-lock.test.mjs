@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decide } from "../app/ai-worker.ts";
+import { decide } from "../app/ai/worker.ts";
 
 const finalChampionBoard = [
   [8192, 2048, 64, 2],

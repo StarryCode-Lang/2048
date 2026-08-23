@@ -1,5 +1,5 @@
-import { decide } from "../app/ai-worker.ts";
-import { aiBudgetFor } from "../app/ai-timing.ts";
+import { decide } from "../app/ai/worker.ts";
+import { aiBudgetFor } from "../app/ai/timing.ts";
 import { readFileSync } from "node:fs";
 
 type Direction = "up" | "down" | "left" | "right";

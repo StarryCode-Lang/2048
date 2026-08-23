@@ -1,4 +1,4 @@
-import { moveBoard, sameBoard, type Direction } from "./game-engine.ts";
+import { moveBoard, sameBoard, type Direction } from "../game/engine.ts";
 
 export const AI_SPEEDS = [
   { label: "极速", target: 32, budget: 30, animation: 14, settle: 18 },

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawnRandomTile } from "../app/game-random.ts";
+import { spawnRandomTile } from "../app/game/random.ts";
 
 const emptyBoard = (size) => Array.from({ length: size }, () => Array(size).fill(0));
 

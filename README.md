@@ -66,6 +66,25 @@ npm test
 - Web Audio API
 - IndexedDB + LocalStorage
 
+## 项目结构
+
+```text
+app/
+├── ai/          # AI 搜索 Worker 与时间预算
+├── game/        # 官方规则、移动与随机生成
+├── i18n/        # 六种界面语言
+├── replay/      # 完整对局日志编码与导出
+├── page.tsx     # 游戏界面与交互
+└── globals.css  # 响应式 Liquid Glass 样式
+build/           # Sites 构建适配
+public/          # 图标与社交预览图
+scripts/         # 构建验证与 AI 基准
+tests/           # 规则、AI、回放和国际化测试
+worker/          # Cloudflare Worker 入口
+```
+
+根目录只保留框架、TypeScript、样式工具及部署流程必须读取的配置文件。项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)。
+
 ## 许可证
 
 [MIT](./LICENSE)

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hasMoves, moveBoard, sameBoard } from "../app/game-engine.ts";
+import { hasMoves, moveBoard, sameBoard } from "../app/game/engine.ts";
 
 test("official merge order allows each resulting tile to merge only once", () => {
   const fourTwos = moveBoard([[2, 2, 2, 2], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], "left");

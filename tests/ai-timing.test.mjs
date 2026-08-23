@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { aiBudgetFor, isEndgameSearch, legalMoveCount } from "../app/ai-timing.ts";
+import { aiBudgetFor, isEndgameSearch, legalMoveCount } from "../app/ai/timing.ts";
 
 test("keeps early play fast and reallocates time to a crowded 4096+ endgame", () => {
   const early = [[2, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 2]];

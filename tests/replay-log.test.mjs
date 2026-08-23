@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { packDirections, packEvents, packTrace, unpackDirections, unpackEvents, unpackTrace } from "../app/replay-log.ts";
+import { packDirections, packEvents, packTrace, unpackDirections, unpackEvents, unpackTrace } from "../app/replay/log.ts";
 
 test("four AI directions are packed into one byte and round-trip exactly", () => {
   const directions = Array.from({ length: 2003 }, (_, index) => index % 4);

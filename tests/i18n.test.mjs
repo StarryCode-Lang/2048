@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { LANGUAGES, TRANSLATIONS, isLanguage } from "../app/i18n.ts";
+import { LANGUAGES, TRANSLATIONS, isLanguage } from "../app/i18n/messages.ts";
 
 test("all six UN official languages have complete UI translations", () => {
   assert.deepEqual(LANGUAGES.map(({ code }) => code), ["zh", "en", "fr", "es", "ru", "ar"]);
