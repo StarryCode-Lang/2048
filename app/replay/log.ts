@@ -99,7 +99,12 @@ export function unpackEvents(packed: Uint8Array) {
 }
 
 function logarithmicBucket(value: number) {
-  return Math.max(0, Math.min(255, Math.round(Math.log2(Math.max(1, value)) * 16)));
+  if (value <= 0) return 0;
+  return Math.max(1, Math.min(255, 1 + Math.round(Math.log2(value) * 16)));
+}
+
+function unpackLogarithmicBucket(value: number) {
+  return value === 0 ? 0 : 2 ** ((value - 1) / 16);
 }
 
 /** Five diagnostic bytes per move; boards are reconstructed from seed + 2-bit directions. */
@@ -123,8 +128,8 @@ export function unpackTrace(packed: Uint8Array) {
       depth: packed[offset] & 15,
       locked: Boolean(packed[offset] & 16),
       elapsedMs: packed[offset + 1] / 2,
-      nodes: 2 ** (packed[offset + 2] / 16),
-      confidence: 2 ** (packed[offset + 3] / 16),
+      nodes: unpackLogarithmicBucket(packed[offset + 2]),
+      confidence: unpackLogarithmicBucket(packed[offset + 3]),
       empty: packed[offset + 4],
     });
   }
@@ -209,7 +214,7 @@ export async function getReplaySummary(size: number): Promise<ReplaySummary | nu
       resolve({
         score: Math.max(...records.map((item) => item.score)),
         maxTile: Math.max(...records.map((item) => item.maxTile)),
-        bytes: records.reduce((total, item) => total + (item.eventBytes?.byteLength ?? item.directionBytes?.byteLength ?? 0) + item.traceBytes.byteLength, 0),
+        bytes: Math.max(...records.map((item) => (item.eventBytes?.byteLength ?? item.directionBytes?.byteLength ?? 0) + item.traceBytes.byteLength)),
       });
     };
     request.onerror = () => { db.close(); reject(request.error); };

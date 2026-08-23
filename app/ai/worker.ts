@@ -44,6 +44,16 @@ let deadline = 0;
 let nodes = 0;
 let nodeLimit = Number.POSITIVE_INFINITY;
 
+/** Isolates deterministic benchmarks from decisions cached by an earlier game. */
+export function resetAiCaches() {
+  moveCache.clear();
+  routeCache.clear();
+  searchCache.clear();
+  lineScoreCache.clear();
+  evaluationCache.clear();
+  principalMoveCache.clear();
+}
+
 function boardKey(board: number[]) {
   let key = "";
   for (const power of board) key += String.fromCharCode(65 + power);

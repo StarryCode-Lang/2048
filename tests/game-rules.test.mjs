@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hasMoves, moveBoard, sameBoard } from "../app/game/engine.ts";
+import { hasMoves, isValidBoard, moveBoard, sameBoard } from "../app/game/engine.ts";
 
 test("official merge order allows each resulting tile to merge only once", () => {
   const fourTwos = moveBoard([[2, 2, 2, 2], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], "left");
@@ -23,4 +23,12 @@ test("invalid moves change nothing and game over requires no empty cell or adjac
   assert.equal(hasMoves(immovable), false);
   assert.equal(sameBoard(immovable, moveBoard(immovable, "left").board), true);
   assert.equal(hasMoves([[2, 2, 4, 8], [16, 32, 64, 128], [256, 512, 1024, 2048], [4, 8, 16, 32]]), true);
+});
+
+test("saved boards reject malformed, negative, fractional, and non-power-of-two tiles", () => {
+  assert.equal(isValidBoard([[2, 0], [4, 8]], 2), true);
+  assert.equal(isValidBoard([[2, 0], [4]], 2), false);
+  assert.equal(isValidBoard([[2, -2], [4, 8]], 2), false);
+  assert.equal(isValidBoard([[2, 3], [4, 8]], 2), false);
+  assert.equal(isValidBoard([[2, 2.5], [4, 8]], 2), false);
 });

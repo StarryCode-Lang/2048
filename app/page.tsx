@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { spawnRandomTile } from "./game/random";
-import { copyBoard, countEmpty, emptyBoard, hasMoves, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game/engine";
+import { audioContextClass, beginAmbientLoop, playMergeTone, stopMusicEngine, type MusicEngine } from "./audio/ambient";
+import { GlassMenu } from "./components/glass-menu";
+import { nextSeededRandom, spawnRandomTile } from "./game/random";
+import { copyBoard, countEmpty, emptyBoard, hasMoves, isValidBoard, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game/engine";
 import { AI_SPEEDS, aiBudgetFor, isEndgameSearch } from "./ai/timing";
 import { LANGUAGES, TRANSLATIONS, isLanguage, type Language } from "./i18n/messages";
+import { useModalFocus } from "./hooks/use-modal-focus";
 import {
   getPreferredReplay,
   getReplaySummary,
@@ -38,14 +41,6 @@ function freshBoardOfSize(size: number, random: () => number = Math.random): Boa
 function createGameSeed() {
   if (typeof crypto !== "undefined" && crypto.getRandomValues) return crypto.getRandomValues(new Uint32Array(1))[0] || 1;
   return ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0) || 1;
-}
-
-function nextSeededRandom(state: number) {
-  const nextState = (state + 0x6d2b79f5) >>> 0;
-  let value = nextState;
-  value = Math.imul(value ^ (value >>> 15), value | 1);
-  value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-  return { state: nextState, value: ((value ^ (value >>> 14)) >>> 0) / 4294967296 };
 }
 
 const DIRECTIONS: Direction[] = ["down", "left", "right", "up"];
@@ -157,14 +152,18 @@ function serializeGameReplay(replay: ActiveGameReplay | null) {
 function restoreGameReplay(value: unknown): ActiveGameReplay | null {
   if (!value || typeof value !== "object") return null;
   const saved = value as Record<string, unknown>;
-  if (!Array.isArray(saved.initialBoard) || typeof saved.events !== "string" || typeof saved.trace !== "string") return null;
+  const savedSize = Number(saved.size);
+  if (!VALID_SIZES.includes(savedSize as 4 | 5 | 6)
+    || !isValidBoard(saved.initialBoard, savedSize)
+    || typeof saved.events !== "string"
+    || typeof saved.trace !== "string") return null;
   const events = unpackEvents(base64ToBytes(saved.events));
   const trace = unpackTrace(base64ToBytes(saved.trace));
   if (events.length !== Number(saved.eventCount) || trace.length !== events.length) return null;
   return {
     algorithm: typeof saved.algorithm === "string" ? saved.algorithm : "expectimax-v17-score-first-escape",
     rules: typeof saved.rules === "string" ? saved.rules : "classic-2048-distribution-v1",
-    size: Number(saved.size),
+    size: savedSize,
     seed: Number(saved.seed) >>> 0,
     speedIndex: Number(saved.speedIndex) || 0,
     initialBoard: (saved.initialBoard as Board).map((row) => [...row]),
@@ -178,165 +177,6 @@ function restoreGameReplay(value: unknown): ActiveGameReplay | null {
 
 function tileClass(value: number) {
   return `${value > 2048 ? "tile-super" : `tile-${value}`} tile-digits-${String(value).length}`;
-}
-
-type MusicEngine = {
-  context: AudioContext;
-  master: GainNode;
-  musicBus: GainNode;
-  delay: DelayNode;
-  timer: number | null;
-  step: number;
-  nextNoteTime: number;
-};
-
-function audioContextClass() {
-  return window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-}
-
-const AMBIENT_CHORDS = [
-  [130.81, 164.81, 196, 246.94],
-  [110, 130.81, 164.81, 196],
-  [87.31, 110, 130.81, 164.81],
-  [98, 123.47, 146.83, 196],
-  [82.41, 98, 123.47, 146.83],
-  [110, 130.81, 164.81, 220],
-] as const;
-const AMBIENT_MELODY = [0, 2, 1, -1, 3, 2, 1, 0, 2, -1, 3, 1, 0, 2, 3, -1] as const;
-
-function scheduleTone(engine: MusicEngine, frequency: number, when: number, duration: number, gainValue: number, type: OscillatorType, detune = 0) {
-  const oscillator = engine.context.createOscillator();
-  const envelope = engine.context.createGain();
-  const filter = engine.context.createBiquadFilter();
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, when);
-  oscillator.detune.setValueAtTime(detune, when);
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(type === "sine" ? 850 : 1850, when);
-  filter.Q.setValueAtTime(0.8, when);
-  envelope.gain.setValueAtTime(0.0001, when);
-  envelope.gain.exponentialRampToValueAtTime(gainValue, when + Math.min(0.08, duration * 0.2));
-  envelope.gain.exponentialRampToValueAtTime(0.0001, when + duration);
-  oscillator.connect(filter);
-  filter.connect(envelope).connect(engine.musicBus);
-  oscillator.start(when);
-  oscillator.stop(when + duration + 0.03);
-}
-
-function scheduleAmbientStep(engine: MusicEngine, when: number) {
-  const step = engine.step;
-  const chord = AMBIENT_CHORDS[Math.floor(step / 8) % AMBIENT_CHORDS.length];
-  const motif = AMBIENT_MELODY[step % AMBIENT_MELODY.length];
-  const variation = Math.floor(step / 32) % 2;
-
-  if (step % 8 === 0) {
-    chord.slice(1).forEach((note, index) => scheduleTone(engine, note, when, 3.2, 0.025, "sine", index * 3 - 3));
-  }
-  if (step % 4 === 0) scheduleTone(engine, chord[0] / 2, when, 1.25, 0.055, "sine");
-  scheduleTone(engine, chord[step % chord.length] * 2, when, 0.34, 0.026, "triangle", step % 2 ? 4 : -4);
-  if (motif >= 0 && (step + variation) % 3 !== 1) {
-    scheduleTone(engine, chord[motif] * (variation ? 4 : 3), when + 0.04, 0.72, 0.02, "sine");
-  }
-  engine.step += 1;
-}
-
-function runMusicScheduler(engine: MusicEngine) {
-  const horizon = engine.context.currentTime + 0.14;
-  while (engine.nextNoteTime < horizon) {
-    scheduleAmbientStep(engine, engine.nextNoteTime);
-    engine.nextNoteTime += 0.42;
-  }
-}
-
-function beginAmbientLoop(engine: MusicEngine) {
-  if (engine.timer !== null) return;
-  engine.nextNoteTime = engine.context.currentTime + 0.03;
-  runMusicScheduler(engine);
-  engine.timer = window.setInterval(() => runMusicScheduler(engine), 25);
-}
-
-function stopMusicEngine(engine: MusicEngine | null) {
-  if (!engine) return;
-  if (engine.timer !== null) window.clearInterval(engine.timer);
-  engine.timer = null;
-  const now = engine.context.currentTime;
-  engine.master.gain.cancelScheduledValues(now);
-  engine.master.gain.setTargetAtTime(0.0001, now, 0.04);
-  window.setTimeout(() => { if (engine.context.state !== "closed") void engine.context.close(); }, 180);
-}
-
-function playMergeTone(gained: number, engine: MusicEngine | null) {
-  try {
-    if (!engine || engine.context.state !== "running") return;
-    const context = engine.context;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = Math.min(720, 260 + Math.log2(gained) * 42);
-    gain.gain.setValueAtTime(0.085, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.09);
-    oscillator.connect(gain).connect(engine.master);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.1);
-  } catch { /* audio is optional */ }
-}
-
-type GlassMenuOption = { value: string; label: string; short?: string; dir?: "ltr" | "rtl" };
-
-function GlassMenu({
-  value,
-  options,
-  label,
-  tooltip,
-  open,
-  compact = false,
-  onToggle,
-  onChange,
-}: {
-  value: string;
-  options: GlassMenuOption[];
-  label: string;
-  tooltip: string;
-  open: boolean;
-  compact?: boolean;
-  onToggle: () => void;
-  onChange: (value: string) => void;
-}) {
-  const selected = options.find((option) => option.value === value) ?? options[0];
-  return (
-    <div className={`glass-menu${compact ? " compact" : ""}`} data-menu-root="true">
-      <button
-        type="button"
-        className="glass-menu-trigger"
-        aria-label={label}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        data-tooltip={tooltip}
-        onClick={onToggle}
-      >
-        <span dir={selected.dir}>{compact ? selected.short ?? selected.label : selected.label}</span>
-        <i aria-hidden="true">⌄</i>
-      </button>
-      {open && (
-        <div className="glass-popover" role="listbox" aria-label={label}>
-          {options.map((option) => (
-            <button
-              type="button"
-              key={option.value}
-              role="option"
-              aria-selected={option.value === value}
-              className={option.value === value ? "selected" : ""}
-              dir={option.dir}
-              onClick={() => onChange(option.value)}
-            >
-              <span>{option.label}</span>
-              <i aria-hidden="true">{option.value === value ? "✓" : ""}</i>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function Home() {
@@ -401,6 +241,11 @@ export default function Home() {
   const activeGameReplayRef = useRef<ActiveGameReplay | null>(null);
   const lastAiDecisionRef = useRef<AiDecision | null>(null);
   const toastTimerRef = useRef<number | null>(null);
+  const championSaveTimerRef = useRef<number | null>(null);
+  const pendingReplayCandidateRef = useRef<ReplayCandidate | null>(null);
+  const gameOver = ready && !hasMoves(board);
+
+  useModalFocus(confirmNew || helpOpen || winOpen || gameOver);
 
   const showToast = useCallback((message: string) => {
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
@@ -459,16 +304,18 @@ export default function Home() {
         if (saved) {
           const parsed = JSON.parse(saved);
           const savedSize = Number(parsed.size) || DEFAULT_SIZE;
-          if (VALID_SIZES.includes(savedSize as 4 | 5 | 6) && Array.isArray(parsed.board) && parsed.board.length === savedSize && parsed.board.every((row: unknown) => Array.isArray(row) && row.length === savedSize)) {
+          if (VALID_SIZES.includes(savedSize as 4 | 5 | 6) && isValidBoard(parsed.board, savedSize)) {
             const savedSeed = (Number(parsed.rngSeed) >>> 0) || createGameSeed();
+            const savedScore = Number.isSafeInteger(Number(parsed.score)) && Number(parsed.score) >= 0 ? Number(parsed.score) : 0;
+            const savedMoves = Number.isSafeInteger(Number(parsed.moves)) && Number(parsed.moves) >= 0 ? Number(parsed.moves) : 0;
             rngSeedRef.current = savedSeed;
             rngStateRef.current = (Number(parsed.rngState) >>> 0) || savedSeed;
             sizeRef.current = savedSize;
             setSize(savedSize);
-            applyState(parsed.board, Number(parsed.score) || 0, Number(parsed.moves) || 0);
+            applyState(parsed.board, savedScore, savedMoves);
             setContinued(Boolean(parsed.continued));
             activeGameReplayRef.current = restoreGameReplay(parsed.replay)
-              ?? createGameReplay(savedSize, savedSeed, savedSpeedIndex, parsed.board, rngStateRef.current, Number(parsed.score) || 0, Number(parsed.moves) || 0);
+              ?? createGameReplay(savedSize, savedSeed, savedSpeedIndex, parsed.board, rngStateRef.current, savedScore, savedMoves);
           } else {
             const seed = createGameSeed();
             rngSeedRef.current = seed;
@@ -728,6 +575,9 @@ export default function Home() {
   const persistReplaySnapshot = useCallback((replay: ActiveGameReplay, finalScore: number, finalBoard: Board, finalMoves = movesRef.current) => {
     const candidate: ReplayCandidate = {
       ...replay,
+      initialBoard: copyBoard(replay.initialBoard),
+      events: [...replay.events],
+      trace: replay.trace.map((entry) => ({ ...entry })),
       score: finalScore,
       maxTile: Math.max(...finalBoard.flat()),
       moves: finalMoves,
@@ -736,6 +586,34 @@ export default function Home() {
       if (changed) refreshReplaySummary(replay.size);
     }).catch(() => { /* logging must never interrupt gameplay */ });
   }, [refreshReplaySummary]);
+
+  const queueReplaySnapshot = useCallback((replay: ActiveGameReplay, finalScore: number, finalBoard: Board, finalMoves: number) => {
+    pendingReplayCandidateRef.current = {
+      ...replay,
+      initialBoard: copyBoard(replay.initialBoard),
+      events: [...replay.events],
+      trace: replay.trace.map((entry) => ({ ...entry })),
+      score: finalScore,
+      maxTile: Math.max(...finalBoard.flat()),
+      moves: finalMoves,
+    };
+    if (championSaveTimerRef.current) return;
+    championSaveTimerRef.current = window.setTimeout(() => {
+      championSaveTimerRef.current = null;
+      const candidate = pendingReplayCandidateRef.current;
+      pendingReplayCandidateRef.current = null;
+      if (!candidate) return;
+      void saveReplayChampions(candidate).then((changed) => {
+        if (changed) refreshReplaySummary(candidate.size);
+      }).catch(() => { /* logging must never interrupt gameplay */ });
+    }, 1000);
+  }, [refreshReplaySummary]);
+
+  useEffect(() => () => {
+    if (championSaveTimerRef.current) window.clearTimeout(championSaveTimerRef.current);
+    const candidate = pendingReplayCandidateRef.current;
+    if (candidate) void saveReplayChampions(candidate).catch(() => {});
+  }, []);
 
   const move = useCallback((direction: Direction, source: "human" | "ai" = "human") => {
     if (source === "human" && aiRunningRef.current) {
@@ -787,7 +665,8 @@ export default function Home() {
         empty: countEmpty(nextBoard),
         locked: source === "ai" && decision?.strategy === "lock",
       });
-      if (replay.events.length % 64 === 0 || reachedDeadEnd) persistReplaySnapshot(replay, nextScore, nextBoard, nextMoves);
+      if (reachedDeadEnd) persistReplaySnapshot(replay, nextScore, nextBoard, nextMoves);
+      else queueReplaySnapshot(replay, nextScore, nextBoard, nextMoves);
       lastAiDecisionRef.current = null;
     }
     animatingRef.current = true;
@@ -834,7 +713,7 @@ export default function Home() {
         } else setWinOpen(true);
       }
     }, settleMs);
-  }, [aiBoardKey, aiSpeedIndex, applyState, confirmNew, continued, feedback, gameRandom, helpOpen, pauseAi, persistReplaySnapshot, requestAiDecision, triggerGestureEffect, ui.continued, ui.fairEnd, ui.takeover, winOpen]);
+  }, [aiBoardKey, aiSpeedIndex, applyState, confirmNew, continued, feedback, gameRandom, helpOpen, pauseAi, persistReplaySnapshot, queueReplaySnapshot, requestAiDecision, triggerGestureEffect, ui.continued, ui.fairEnd, ui.takeover, winOpen]);
 
   useEffect(() => {
     if (animating || !queuedDirection.current) return;
@@ -860,12 +739,12 @@ export default function Home() {
       replay.events.push({ kind: "undo", source: "human" });
       replay.trace.push({ depth: 0, elapsedMs: 0, nodes: 0, confidence: 0, empty: countEmpty(snapshot.board), locked: false });
       activeGameReplayRef.current = replay;
-      if (replay.events.length % 64 === 0) persistReplaySnapshot(replay, snapshot.score, snapshot.board, snapshot.moves);
+      queueReplaySnapshot(replay, snapshot.score, snapshot.board, snapshot.moves);
       lastAiDecisionRef.current = null;
       applyState(copyBoard(snapshot.board), snapshot.score, snapshot.moves);
       return old.slice(0, -1);
     });
-  }, [aiSpeedIndex, applyState, confirmNew, helpOpen, pauseAi, persistReplaySnapshot, ui.aiUndoBlocked, ui.undoWait, winOpen]);
+  }, [aiSpeedIndex, applyState, confirmNew, helpOpen, pauseAi, queueReplaySnapshot, ui.aiUndoBlocked, ui.undoWait, winOpen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -887,6 +766,14 @@ export default function Home() {
   }, [move, musicPlaying, soundOn, startMusic, undo]);
 
   const startNew = (targetSize = sizeRef.current) => {
+    if (championSaveTimerRef.current) {
+      window.clearTimeout(championSaveTimerRef.current);
+      championSaveTimerRef.current = null;
+    }
+    pendingReplayCandidateRef.current = null;
+    if (activeGameReplayRef.current && movesRef.current > 0) {
+      persistReplaySnapshot(activeGameReplayRef.current, scoreRef.current, boardRef.current, movesRef.current);
+    }
     pauseAi(ui.waiting);
     if (moveTimer.current) window.clearTimeout(moveTimer.current);
     animatingRef.current = false;
@@ -1066,7 +953,7 @@ export default function Home() {
       });
       downloadJson(payload, `2048-current-${Math.max(...boardRef.current.flat())}-${scoreRef.current}.2048log`);
       showToast(ui.exportedCurrent);
-    } catch { /* export is optional */ }
+    } catch { showToast(ui.exportFailed); }
   };
 
   const downloadChampionReplay = async () => {
@@ -1101,12 +988,11 @@ export default function Home() {
       });
       downloadJson(payload, `2048-record-${replay.maxTile}-${replay.score}.2048log`);
       showToast(ui.exportedRecord);
-    } catch { /* export is optional */ }
+    } catch { showToast(ui.exportFailed); }
   };
 
   const maxTile = Math.max(...board.flat());
   const best = bests[size] || 0;
-  const gameOver = ready && !hasMoves(board);
   const nextTarget = Math.max(4, (maxTile || 2) * 2);
   const emptyCount = countEmpty(board);
   const aiRoute = snakePositions(size, aiCorner);
@@ -1120,7 +1006,12 @@ export default function Home() {
       dir={language === "ar" ? "rtl" : "ltr"}
       onPointerDownCapture={() => { if (soundOn && !musicPlaying) void startMusic(true); }}
     >
-      <section className="game" aria-label={`2048 · ${ui.eyebrow}`}>
+      <section
+        className="game"
+        aria-label={`2048 · ${ui.eyebrow}`}
+        aria-hidden={confirmNew || helpOpen || undefined}
+        inert={confirmNew || helpOpen || undefined}
+      >
         <header className="topbar">
           <div>
             <p className="eyebrow">{ui.eyebrow}</p>
@@ -1233,6 +1124,8 @@ export default function Home() {
             className={`board board-${size}${animating ? " is-moving" : ""}`}
             style={{ "--size": size, "--motion-duration": `${motionDuration}ms`, "--arrival-duration": `${arrivalDuration}ms` } as CSSProperties}
             role="region"
+            tabIndex={0}
+            aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight W A S D"
             aria-busy={!ready || animating}
             aria-label={ui.boardLabel(size, displayedMaxTile)}
             onContextMenu={(event) => event.preventDefault()}
@@ -1304,7 +1197,7 @@ export default function Home() {
         </div>
       </section>
 
-      <p className="footer-tip"><strong>{ui.gameplay}</strong>{ui.gameplayText}</p>
+      <p className="footer-tip" aria-hidden={confirmNew || helpOpen || undefined} inert={confirmNew || helpOpen || undefined}><strong>{ui.gameplay}</strong>{ui.gameplayText}</p>
 
       {needsAudioTap && soundOn && !confirmNew && !helpOpen && !winOpen && (
         <button className="music-prompt" onClick={() => void startMusic(true)} aria-label={ui.soundOn}>

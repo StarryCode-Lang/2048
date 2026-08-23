@@ -7,6 +7,15 @@ export type SpawnResult = {
   value: 0 | 2 | 4;
 };
 
+/** Mulberry32 step used by saved games and deterministic replay reconstruction. */
+export function nextSeededRandom(state: number) {
+  const nextState = (state + 0x6d2b79f5) >>> 0;
+  let value = nextState;
+  value = Math.imul(value ^ (value >>> 15), value | 1);
+  value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+  return { state: nextState, value: ((value ^ (value >>> 14)) >>> 0) / 4294967296 };
+}
+
 /** Official 2048 order: choose 2/4 first, then choose uniformly from empty cells. */
 export function spawnRandomTile(board: GameBoard, random: () => number = Math.random): SpawnResult {
   const open: SpawnPoint[] = [];

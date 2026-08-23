@@ -31,7 +31,7 @@ const zh = {
   continued: "突破 2048，继续挑战", undoWait: "撤销后等待", modeChanged: "模式已切换", planning: "正在规划左上蛇形链",
   noMoves: "挑战结束 · 已无合法移动", fastDecision: "快速决策", fairForward: "公平前向", nextTarget: "下一个目标",
   language: "语言", chooseLanguage: "选择界面语言", chooseSpeed: "选择 AI 运行速度", exportCurrentHint: "导出当前完整对局日志",
-  exportRecordHint: "导出历史最高分完整日志", exportedCurrent: "当前对局日志已导出", exportedRecord: "历史最高分日志已导出",
+  exportRecordHint: "导出历史最高分完整日志", exportedCurrent: "当前对局日志已导出", exportedRecord: "历史最高分日志已导出", exportFailed: "日志导出失败，请重试",
   scoreLine: (score: number, moves: number) => `得分 ${score} · 共 ${moves} 步`,
   boardLabel: (size: number, max: number) => `${size} 乘 ${size} 的 2048 棋盘，当前最高数字 ${max}`,
   direction: { up: "向上", down: "向下", left: "向左", right: "向右" },
@@ -70,7 +70,7 @@ const en: Translation = {
   continued: "2048 reached — continuing", undoWait: "Waiting after undo", modeChanged: "Mode changed", planning: "Planning the top-left snake chain",
   noMoves: "Challenge over · No legal moves", fastDecision: "Fast decision", fairForward: "Fair forward play", nextTarget: "Next target",
   language: "Language", chooseLanguage: "Choose interface language", chooseSpeed: "Choose AI speed", exportCurrentHint: "Export the complete current-game log",
-  exportRecordHint: "Export the best-score game log", exportedCurrent: "Current-game log exported", exportedRecord: "Best-score log exported",
+  exportRecordHint: "Export the best-score game log", exportedCurrent: "Current-game log exported", exportedRecord: "Best-score log exported", exportFailed: "Export failed. Please try again.",
   scoreLine: (score, moves) => `Score ${score} · ${moves} moves`, boardLabel: (size, max) => `${size} by ${size} 2048 board, largest tile ${max}`,
   direction: { up: "Up", down: "Down", left: "Left", right: "Right" }, speeds: ["Fast", "100ms", "500ms"],
 };
@@ -94,7 +94,7 @@ const fr: Translation = {
   fairEnd: "Défi terminé · Aucune annulation IA", continued: "2048 atteint — poursuite", undoWait: "En attente après annulation", modeChanged: "Mode modifié",
   planning: "Planification de la chaîne en serpentin", noMoves: "Défi terminé · Aucun coup légal", fastDecision: "Décision rapide", fairForward: "Jeu équitable en avant", nextTarget: "Prochain objectif",
   language: "Langue", chooseLanguage: "Choisir la langue", chooseSpeed: "Choisir la vitesse de l’IA", exportCurrentHint: "Exporter le journal complet de cette partie",
-  exportRecordHint: "Exporter le journal du record", exportedCurrent: "Journal de la partie exporté", exportedRecord: "Journal du record exporté",
+  exportRecordHint: "Exporter le journal du record", exportedCurrent: "Journal de la partie exporté", exportedRecord: "Journal du record exporté", exportFailed: "Échec de l’exportation. Réessayez.",
   scoreLine: (score, moves) => `Score ${score} · ${moves} coups`, boardLabel: (size, max) => `Plateau 2048 ${size} par ${size}, tuile maximale ${max}`,
   direction: { up: "Haut", down: "Bas", left: "Gauche", right: "Droite" }, speeds: ["Rapide", "100ms", "500ms"],
 };
@@ -118,7 +118,7 @@ const es: Translation = {
   fairEnd: "Reto terminado · IA sin deshacer", continued: "2048 alcanzado — continuando", undoWait: "Esperando tras deshacer", modeChanged: "Modo cambiado",
   planning: "Planificando la cadena serpenteante", noMoves: "Reto terminado · Sin movimientos legales", fastDecision: "Decisión rápida", fairForward: "Juego justo hacia delante", nextTarget: "Siguiente objetivo",
   language: "Idioma", chooseLanguage: "Elegir idioma", chooseSpeed: "Elegir velocidad de IA", exportCurrentHint: "Exportar el registro completo de esta partida",
-  exportRecordHint: "Exportar el registro del récord", exportedCurrent: "Registro de la partida exportado", exportedRecord: "Registro del récord exportado",
+  exportRecordHint: "Exportar el registro del récord", exportedCurrent: "Registro de la partida exportado", exportedRecord: "Registro del récord exportado", exportFailed: "Error al exportar. Inténtalo de nuevo.",
   scoreLine: (score, moves) => `Puntos ${score} · ${moves} mov.`, boardLabel: (size, max) => `Tablero 2048 de ${size} por ${size}, ficha mayor ${max}`,
   direction: { up: "Arriba", down: "Abajo", left: "Izquierda", right: "Derecha" }, speeds: ["Rápido", "100ms", "500ms"],
 };
@@ -142,7 +142,7 @@ const ru: Translation = {
   fairEnd: "Испытание завершено · Без отмен ИИ", continued: "2048 достигнуто — продолжаем", undoWait: "Ожидание после отмены", modeChanged: "Режим изменён",
   planning: "Планирование змейки из левого верхнего угла", noMoves: "Испытание завершено · Нет ходов", fastDecision: "Быстрое решение", fairForward: "Честная игра без возврата", nextTarget: "Следующая цель",
   language: "Язык", chooseLanguage: "Выбрать язык интерфейса", chooseSpeed: "Выбрать скорость ИИ", exportCurrentHint: "Экспортировать полный журнал игры",
-  exportRecordHint: "Экспортировать журнал рекорда", exportedCurrent: "Журнал игры экспортирован", exportedRecord: "Журнал рекорда экспортирован",
+  exportRecordHint: "Экспортировать журнал рекорда", exportedCurrent: "Журнал игры экспортирован", exportedRecord: "Журнал рекорда экспортирован", exportFailed: "Не удалось экспортировать. Повторите попытку.",
   scoreLine: (score, moves) => `Счёт ${score} · ${moves} ходов`, boardLabel: (size, max) => `Поле 2048 ${size} на ${size}, макс. плитка ${max}`,
   direction: { up: "Вверх", down: "Вниз", left: "Влево", right: "Вправо" }, speeds: ["Быстро", "100ms", "500ms"],
 };
@@ -166,7 +166,7 @@ const ar: Translation = {
   fairEnd: "انتهى التحدي · بلا تراجع للذكاء الاصطناعي", continued: "تم بلوغ 2048 — متابعة", undoWait: "انتظار بعد التراجع", modeChanged: "تم تغيير الوضع",
   planning: "تخطيط السلسلة المتعرجة من أعلى اليسار", noMoves: "انتهى التحدي · لا حركات صالحة", fastDecision: "قرار سريع", fairForward: "لعب عادل للأمام", nextTarget: "الهدف التالي",
   language: "اللغة", chooseLanguage: "اختر لغة الواجهة", chooseSpeed: "اختر سرعة الذكاء الاصطناعي", exportCurrentHint: "تصدير السجل الكامل للجولة الحالية",
-  exportRecordHint: "تصدير سجل أعلى نتيجة", exportedCurrent: "تم تصدير سجل الجولة", exportedRecord: "تم تصدير سجل أعلى نتيجة",
+  exportRecordHint: "تصدير سجل أعلى نتيجة", exportedCurrent: "تم تصدير سجل الجولة", exportedRecord: "تم تصدير سجل أعلى نتيجة", exportFailed: "تعذر التصدير. حاول مرة أخرى.",
   scoreLine: (score, moves) => `النقاط ${score} · ${moves} حركات`, boardLabel: (size, max) => `لوحة 2048 بحجم ${size} × ${size}، أكبر قطعة ${max}`,
   direction: { up: "أعلى", down: "أسفل", left: "يسار", right: "يمين" }, speeds: ["فائق", "100ms", "500ms"],
 };

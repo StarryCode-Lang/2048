@@ -20,6 +20,18 @@ export function copyBoard(board: Board): Board {
   return board.map((row) => [...row]);
 }
 
+export function isValidBoard(value: unknown, expectedSize?: number): value is Board {
+  if (!Array.isArray(value) || !value.length) return false;
+  const size = expectedSize ?? value.length;
+  if (value.length !== size) return false;
+  return value.every((row) => Array.isArray(row)
+    && row.length === size
+    && row.every((tile) => typeof tile === "number"
+      && Number.isSafeInteger(tile)
+      && tile >= 0
+      && (tile === 0 || Number.isInteger(Math.log2(tile)))));
+}
+
 function linePoint(direction: Direction, line: number, offset: number, size: number): CellPoint {
   if (direction === "left") return { row: line, col: offset };
   if (direction === "right") return { row: line, col: size - 1 - offset };

@@ -4,7 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "2048 · 数字合成",
   description: "支持 4×4、5×5、6×6 与全盘 AI 挑战的经典 2048 数字合成游戏。",
-  other: { "codex-preview": "development" },
   openGraph: {
     title: "2048 · 数字合成",
     description: "液态玻璃风格的 2048，支持多尺寸棋盘与全盘 AI 挑战。",

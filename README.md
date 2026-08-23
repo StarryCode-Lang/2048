@@ -39,24 +39,21 @@ npm run dev
 
 ```bash
 npm ci
-npm run build
+npm run build:verified
 npm start
 ```
 
-默认的 `dev`、`build` 和 `start` 命令均可在 Windows、macOS 和 Linux 使用。
+默认的 `dev`、`build`、`build:verified`、`start` 和 `verify` 命令均可在 Windows、macOS 和 Linux 使用。`install:ci` 仅供 Sites 的 Linux 构建环境调用。
 
 ## 测试
 
 ```bash
-npm run lint
-npm run test:fairness
-npm run test:ai
-npm run test:replay
-npm run test:i18n
-npm test
+npm run verify
 ```
 
-公平性测试覆盖经典 2048 的核心规则：每次有效移动后，从所有空格中等概率选择一个位置，90% 生成 2、10% 生成 4；每个合并结果在同一步中只能合并一次；分数等于新合并数字之和。
+`verify` 会依次执行 TypeScript、ESLint、公平规则、AI、多种子质量门槛、回放重建、六语言、生产构建、真实资源路由和完整依赖审计。也可以单独运行 `npm run test:fairness`、`npm run test:ai`、`npm run test:replay`、`npm run test:i18n`、`npm run test:rendered`、`npm run audit:all` 或 `npm run audit:prod`。
+
+公平性测试覆盖经典 2048 的核心规则：每次有效移动后，从所有空格中等概率选择一个位置，90% 生成 2、10% 生成 4；每个合并结果在同一步中只能合并一次；分数等于新合并数字之和。`npm run benchmark:ai:suite` 可运行 16 个固定种子的离线 AI 基准。
 
 ## 技术栈
 
@@ -70,10 +67,13 @@ npm test
 
 ```text
 app/
-├── ai/          # AI 搜索 Worker 与时间预算
+├── ai/          # AI 搜索 Worker、时间预算与确定性模拟
+├── audio/       # 背景音乐与合并音效
+├── components/  # 可复用界面组件
 ├── game/        # 官方规则、移动与随机生成
+├── hooks/       # 焦点管理等交互 Hook
 ├── i18n/        # 六种界面语言
-├── replay/      # 完整对局日志编码与导出
+├── replay/      # 完整对局日志编码、持久化与重建
 ├── page.tsx     # 游戏界面与交互
 └── globals.css  # 响应式 Liquid Glass 样式
 build/           # Sites 构建适配
