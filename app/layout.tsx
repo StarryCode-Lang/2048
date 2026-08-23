@@ -8,13 +8,13 @@ export const metadata: Metadata = {
     title: "2048 · 数字合成",
     description: "液态玻璃风格的 2048，支持多尺寸棋盘与全盘 AI 挑战。",
     type: "website",
-    images: ["https://mobile-2048-game.roberfan.chatgpt.site/og.png"],
+    images: ["https://ai2048.roberfan.chatgpt.site/og.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "2048 · 数字合成",
     description: "液态玻璃风格的 2048，支持多尺寸棋盘与全盘 AI 挑战。",
-    images: ["https://mobile-2048-game.roberfan.chatgpt.site/og.png"],
+    images: ["https://ai2048.roberfan.chatgpt.site/og.png"],
   },
   icons: {
     icon: "/favicon.svg",

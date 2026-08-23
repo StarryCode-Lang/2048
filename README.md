@@ -6,7 +6,7 @@
 
 ## 在线体验
 
-[打开在线版本](https://mobile-2048-game.roberfan.chatgpt.site)
+[打开在线版本](https://ai2048.roberfan.chatgpt.site)
 
 ## 功能
 

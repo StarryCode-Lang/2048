@@ -8,7 +8,7 @@
     "url": "https://github.com/StarryCode-Lang/2048.git"
   },
   "bugs": "https://github.com/StarryCode-Lang/2048/issues",
-  "homepage": "https://mobile-2048-game.roberfan.chatgpt.site",
+  "homepage": "https://ai2048.roberfan.chatgpt.site",
   "engines": {
     "node": ">=22.13.0"
   },
