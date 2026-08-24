@@ -88,7 +88,10 @@ export function GlassMenu({
               tabIndex={index === selectedIndex ? 0 : -1}
               className={option.value === value ? "selected" : ""}
               dir={option.dir}
-              onClick={() => onChange(option.value)}
+              onClick={(event) => {
+                onChange(option.value);
+                if (event.detail === 0) requestAnimationFrame(() => triggerRef.current?.focus());
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.preventDefault();

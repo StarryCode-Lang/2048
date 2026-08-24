@@ -15,7 +15,7 @@
 - 跟手的移动、合并、光晕与粒子反馈
 - 支持浅色、深色和 Liquid Glass 视觉风格
 - 中文、English、Français、Español、Русский、العربية
-- AI 自动挑战，支持极速、100ms、500ms 三档速度
+- AI 自动挑战，4×4 使用高吞吐位棋盘 Expectimax，支持极速、100ms、500ms 三档速度
 - AI 挑战全程禁止撤回，不预知下一随机块
 - 当前局和历史最高分完整日志导出
 - 本地自动保存进度、主题、语言及各棋盘最高分
@@ -67,7 +67,7 @@ npm run verify
 
 ```text
 app/
-├── ai/          # AI 搜索 Worker、时间预算与确定性模拟
+├── ai/          # AI 搜索 Worker、4×4 位棋盘、时间预算与确定性模拟
 ├── audio/       # 背景音乐与合并音效
 ├── components/  # 可复用界面组件
 ├── game/        # 官方规则、移动与随机生成
@@ -81,9 +81,10 @@ public/          # 图标与社交预览图
 scripts/         # 构建验证与 AI 基准
 tests/           # 规则、AI、回放和国际化测试
 worker/          # Cloudflare Worker 入口
+docs/            # AI 架构、研究依据与验证合同
 ```
 
-根目录只保留框架、TypeScript、样式工具及部署流程必须读取的配置文件。项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)。
+根目录只保留框架、TypeScript、样式工具、许可证及部署流程必须读取的配置文件。AI 的信息边界、实现取舍和基准方法见 [`docs/ai.md`](./docs/ai.md)，项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)，第三方授权见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
 
 ## 许可证
 

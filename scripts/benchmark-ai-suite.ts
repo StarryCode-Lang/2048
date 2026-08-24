@@ -13,15 +13,20 @@ const started = performance.now();
 const results = seeds.map((seed) => simulateAiGame({ seed, maxMoves, nodeBudget }));
 const scores = results.map((result) => result.score).sort((a, b) => a - b);
 const tiles = results.map((result) => result.maxTile);
+const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+const scoreStandardDeviation = Math.sqrt(scores.reduce((sum, score) => sum + (score - averageScore) ** 2, 0) / scores.length);
 const summary = {
   seeds: results.length,
   maxMoves,
   nodeBudget,
-  averageScore: Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length),
+  averageScore: Math.round(averageScore),
+  scoreStandardDeviation: Math.round(scoreStandardDeviation),
+  lowerQuartileScore: scores[Math.floor(scores.length * .25)],
   medianScore: scores[Math.floor(scores.length / 2)],
   minimumScore: scores[0],
   reached512: tiles.filter((tile) => tile >= 512).length,
   reached1024: tiles.filter((tile) => tile >= 1024).length,
+  reached2048: tiles.filter((tile) => tile >= 2048).length,
   elapsedMs: Math.round(performance.now() - started),
   results: results.map((result) => ({
     seed: result.seed,

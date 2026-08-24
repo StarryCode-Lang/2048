@@ -88,7 +88,7 @@ h1 { margin: 0; font-size: clamp(64px, 19vw, 92px); line-height: .98; letter-spa
 .glass-menu-trigger:active { transform: scale(.94); }
 .dark .glass-menu-trigger { background: rgba(255,255,255,.06); }
 .glass-popover { position: absolute; z-index: 55; inset-inline-end: 0; bottom: calc(100% + 9px); display: grid; gap: 4px; min-width: 154px; padding: 6px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: rgba(247,250,253,.97); -webkit-backdrop-filter: blur(34px) saturate(1.55); backdrop-filter: blur(34px) saturate(1.55); box-shadow: 0 22px 58px rgba(35,50,72,.24), inset 0 1px rgba(255,255,255,.82); animation: menuIn .16s cubic-bezier(.2,.85,.25,1); }
-.glass-popover button { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 38px; padding: 7px 10px; border: 0; border-radius: 10px; color: var(--ink); background: transparent; font-size: 12px; font-weight: 750; text-align: start; white-space: nowrap; cursor: pointer; transition: color .12s ease, background .12s ease, transform .1s ease; }
+.glass-popover button { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; padding: 7px 10px; border: 0; border-radius: 10px; color: var(--ink); background: transparent; font-size: 12px; font-weight: 750; text-align: start; white-space: nowrap; cursor: pointer; transition: color .12s ease, background .12s ease, transform .1s ease; }
 .glass-popover button i { color: #655be0; font-style: normal; font-weight: 950; }
 .glass-popover button.selected { color: #5f56d8; background: rgba(111,101,231,.12); }
 .glass-popover button:active { transform: scale(.97); }
@@ -127,7 +127,7 @@ h1 { margin: 0; font-size: clamp(64px, 19vw, 92px); line-height: .98; letter-spa
 .route-story span { margin-top: 4px; color: #665fd2; font-size: 13px; font-weight: 900; letter-spacing: .08em; }
 .route-story small { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; font-variant-numeric: tabular-nums; }
 .replay-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.replay-export { display: inline-flex; align-items: center; gap: 5px; min-height: 38px; padding: 7px 10px; border: 1px solid rgba(104,94,246,.2); border-radius: 11px; color: #6259da; background: rgba(255,255,255,.34); font-size: 10px; font-weight: 800; line-height: 1.2; cursor: pointer; transition: transform .12s cubic-bezier(.2,.8,.2,1), background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.replay-export { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 7px 10px; border: 1px solid rgba(104,94,246,.2); border-radius: 11px; color: #6259da; background: rgba(255,255,255,.34); font-size: 10px; font-weight: 800; line-height: 1.2; cursor: pointer; transition: transform .12s cubic-bezier(.2,.8,.2,1), background .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .replay-export > i { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 6px; color: white; background: #6b62de; font-size: 11px; font-style: normal; line-height: 1; }
 .replay-export:active:not(:disabled) { transform: scale(.96); }
 .replay-export:disabled { opacity: .42; cursor: default; }

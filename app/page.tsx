@@ -27,7 +27,7 @@ type Snapshot = { board: Board; score: number; moves: number; rngState: number }
 type AiCorner = 0 | 1 | 2 | 3;
 
 const DEFAULT_SIZE = 4;
-const AI_ALGORITHM = "expectimax-v19-forward-cache";
+const AI_ALGORITHM = "expectimax-v20-packed-bitboard";
 const GAME_RULES = "official-2048-v1";
 const VALID_SIZES = [4, 5, 6] as const;
 const SAVE_KEY = "2048-save-v2";
@@ -616,12 +616,7 @@ export default function Home() {
   }, []);
 
   const move = useCallback((direction: Direction, source: "human" | "ai" = "human") => {
-    if (source === "human" && aiRunningRef.current) {
-      aiRunningRef.current = false;
-      setAiRunning(false);
-      setAiThought(ui.takeover);
-      lastAiDecisionRef.current = null;
-    }
+    if (source === "human" && aiRunningRef.current) pauseAi(ui.takeover);
     if (animatingRef.current) {
       queuedDirection.current = direction;
       return;

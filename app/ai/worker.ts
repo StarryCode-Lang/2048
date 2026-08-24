@@ -1,5 +1,7 @@
 export {};
 
+import { BITBOARD_OVERFLOW, decideBitboard, resetBitboardCaches, supportsBitboard } from "./bitboard.ts";
+
 type Direction = "up" | "down" | "left" | "right";
 type Corner = 0 | 1 | 2 | 3;
 type MoveResult = {
@@ -52,6 +54,7 @@ export function resetAiCaches() {
   lineScoreCache.clear();
   evaluationCache.clear();
   principalMoveCache.clear();
+  resetBitboardCaches();
 }
 
 function boardKey(board: number[]) {
@@ -345,7 +348,7 @@ function maxSearch(board: number[], size: number, anchor: Corner, depth: number,
   return best;
 }
 
-export function decide(message: RequestMessage): ResponseMessage {
+export function decideArray(message: RequestMessage): ResponseMessage {
   const started = performance.now();
   const deterministicNodeBudget = Number.isFinite(message.nodeBudget) ? Math.max(256, Math.floor(message.nodeBudget!)) : 0;
   deadline = deterministicNodeBudget ? Number.POSITIVE_INFINITY : started + Math.max(30, Math.min(240, message.budgetMs));
@@ -428,6 +431,18 @@ export function decide(message: RequestMessage): ResponseMessage {
     movableTiles: chosen.movableTiles,
     confidence,
   };
+}
+
+export function decide(message: RequestMessage): ResponseMessage {
+  if (supportsBitboard(message.board)) {
+    try {
+      return decideBitboard(message);
+    } catch (error) {
+      if (error !== BITBOARD_OVERFLOW) throw error;
+      resetBitboardCaches();
+    }
+  }
+  return decideArray(message);
 }
 
 if (typeof self !== "undefined") {
