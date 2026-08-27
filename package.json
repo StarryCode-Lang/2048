@@ -12,6 +12,7 @@
   "engines": {
     "node": ">=22.13.0"
   },
+  "packageManager": "npm@12.0.2",
   "scripts": {
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "vite",
@@ -28,18 +29,18 @@
     "test:replay": "node --experimental-strip-types --test tests/replay-log.test.mjs",
     "test:rendered": "node --test tests/rendered-html.test.mjs",
     "validate:artifact": "node scripts/validate-artifact.mjs",
-    "audit:all": "npm audit --registry=https://registry.npmjs.org",
-    "audit:prod": "npm audit --omit=dev --registry=https://registry.npmjs.org",
+    "audit:all": "node scripts/npm-audit.mjs",
+    "audit:prod": "node scripts/npm-audit.mjs --omit=dev",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build:verified && npm run test:rendered && npm run audit:all",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
+    "lint": "eslint app build scripts tests worker *.mjs *.ts"
   },
   "dependencies": {
-    "next": "16.3.2",
+    "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.53.1",
+    "@cloudflare/vite-plugin": "1.54.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.19.19",
     "@types/react": "19.2.18",
@@ -47,19 +48,19 @@
     "@vitejs/plugin-react": "6.1.0",
     "@vitejs/plugin-rsc": "0.5.34",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.2",
+    "eslint-config-next": "16.3.3",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vinext": "1.0.0-beta.8",
     "vite": "8.2.2",
-    "wrangler": "4.125.0"
+    "wrangler": "4.126.0"
   },
   "type": "module",
   "displayName": "2048 · 数字合成",
   "allowScripts": {
     "esbuild@0.28.1": true,
     "unrs-resolver@1.12.2": true,
-    "workerd@1.20260820.1": true
+    "workerd@1.20260825.1": true
   }
 }

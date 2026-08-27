@@ -29,6 +29,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,3 +41,22 @@ next-env.d.ts
 /.sites-runtime/
 /outputs/
 /work/
+
+# test and tool output
+/playwright-report/
+/test-results/
+.eslintcache
+*.tsbuildinfo
+/.vite/
+
+# editor and operating-system files
+/.idea/
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/settings.json
+Thumbs.db
+Desktop.ini
+
+# local packages and temporary files
+*.tgz
+*.tmp

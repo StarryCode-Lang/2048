@@ -34,6 +34,34 @@ const SAVE_KEY = "2048-save-v2";
 const BESTS_KEY = "2048-bests-v1";
 const DIRECTION_ARROWS: Record<Direction, string> = { up: "↑", down: "↓", left: "←", right: "→" };
 
+function preferredLanguage(values: readonly string[]): Language {
+  for (const value of values) {
+    const language = value.toLowerCase().split("-")[0];
+    if (isLanguage(language)) return language;
+  }
+  return "zh";
+}
+
+function storedInteger(value: string | null, fallback: number, maximum: number) {
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= maximum ? parsed : fallback;
+}
+
+function safeScore(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function storedRecord(key: string): Record<string, unknown> {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
 function freshBoardOfSize(size: number, random: () => number = Math.random): Board {
   return spawnRandomTile(spawnRandomTile(emptyBoard(size), random).board, random).board;
 }
@@ -150,29 +178,42 @@ function serializeGameReplay(replay: ActiveGameReplay | null) {
 }
 
 function restoreGameReplay(value: unknown): ActiveGameReplay | null {
-  if (!value || typeof value !== "object") return null;
-  const saved = value as Record<string, unknown>;
-  const savedSize = Number(saved.size);
-  if (!VALID_SIZES.includes(savedSize as 4 | 5 | 6)
-    || !isValidBoard(saved.initialBoard, savedSize)
-    || typeof saved.events !== "string"
-    || typeof saved.trace !== "string") return null;
-  const events = unpackEvents(base64ToBytes(saved.events));
-  const trace = unpackTrace(base64ToBytes(saved.trace));
-  if (events.length !== Number(saved.eventCount) || trace.length !== events.length) return null;
-  return {
-    algorithm: typeof saved.algorithm === "string" ? saved.algorithm : "expectimax-v17-score-first-escape",
-    rules: typeof saved.rules === "string" ? saved.rules : "classic-2048-distribution-v1",
-    size: savedSize,
-    seed: Number(saved.seed) >>> 0,
-    speedIndex: Number(saved.speedIndex) || 0,
-    initialBoard: (saved.initialBoard as Board).map((row) => [...row]),
-    initialRngState: Number(saved.initialRngState) >>> 0,
-    initialScore: Number(saved.initialScore) || 0,
-    initialMoves: Number(saved.initialMoves) || 0,
-    events,
-    trace,
-  };
+  try {
+    if (!value || typeof value !== "object") return null;
+    const saved = value as Record<string, unknown>;
+    const savedSize = Number(saved.size);
+    const initialScore = Number(saved.initialScore);
+    const initialMoves = Number(saved.initialMoves);
+    const seed = Number(saved.seed);
+    const initialRngState = Number(saved.initialRngState);
+    const speedIndex = Number(saved.speedIndex);
+    if (!VALID_SIZES.includes(savedSize as 4 | 5 | 6)
+      || !isValidBoard(saved.initialBoard, savedSize)
+      || !Number.isSafeInteger(initialScore) || initialScore < 0
+      || !Number.isSafeInteger(initialMoves) || initialMoves < 0
+      || !Number.isSafeInteger(seed) || seed <= 0 || seed > 0xffffffff
+      || !Number.isSafeInteger(initialRngState) || initialRngState <= 0 || initialRngState > 0xffffffff
+      || typeof saved.events !== "string"
+      || typeof saved.trace !== "string") return null;
+    const events = unpackEvents(base64ToBytes(saved.events));
+    const trace = unpackTrace(base64ToBytes(saved.trace));
+    if (events.length !== Number(saved.eventCount) || trace.length !== events.length) return null;
+    return {
+      algorithm: typeof saved.algorithm === "string" ? saved.algorithm : "expectimax-v17-score-first-escape",
+      rules: typeof saved.rules === "string" ? saved.rules : "classic-2048-distribution-v1",
+      size: savedSize,
+      seed: seed >>> 0,
+      speedIndex: Number.isInteger(speedIndex) ? Math.min(AI_SPEEDS.length - 1, Math.max(0, speedIndex)) : 0,
+      initialBoard: (saved.initialBoard as Board).map((row) => [...row]),
+      initialRngState: initialRngState >>> 0,
+      initialScore,
+      initialMoves,
+      events,
+      trace,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function tileClass(value: number) {
@@ -291,14 +332,15 @@ export default function Home() {
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       try {
-        const savedBests = JSON.parse(localStorage.getItem(BESTS_KEY) || "{}");
-        const legacyBest = Number(localStorage.getItem("2048-best-v1")) || 0;
-        setBests({ 4: Number(savedBests[4]) || legacyBest, 5: Number(savedBests[5]) || 0, 6: Number(savedBests[6]) || 0 });
+        const savedBests = storedRecord(BESTS_KEY);
+        const legacyBest = safeScore(localStorage.getItem("2048-best-v1"));
+        setBests({ 4: safeScore(savedBests[4], legacyBest), 5: safeScore(savedBests[5]), 6: safeScore(savedBests[6]) });
         setSoundOn(localStorage.getItem("2048-sound") !== "off");
-        setDark(localStorage.getItem("2048-theme") === "dark");
+        const savedTheme = localStorage.getItem("2048-theme");
+        setDark(savedTheme === "dark" || (savedTheme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches));
         const savedLanguage = localStorage.getItem("2048-language");
-        if (isLanguage(savedLanguage)) setLanguage(savedLanguage);
-        const savedSpeedIndex = Math.min(2, Math.max(0, Number(localStorage.getItem("2048-ai-speed")) || 1));
+        setLanguage(isLanguage(savedLanguage) ? savedLanguage : preferredLanguage(navigator.languages));
+        const savedSpeedIndex = storedInteger(localStorage.getItem("2048-ai-speed"), 1, AI_SPEEDS.length - 1);
         setAiSpeedIndex(savedSpeedIndex);
         const saved = localStorage.getItem(SAVE_KEY);
         if (saved) {
@@ -367,6 +409,11 @@ export default function Home() {
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
     if (!aiRunningRef.current) setAiThought(ui.waiting);
   }, [language, ui.waiting]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute("content", dark ? "#10151b" : "#edf2f7");
+  }, [dark]);
 
   useEffect(() => {
     if (!ready) return;
@@ -1123,6 +1170,7 @@ export default function Home() {
             aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight W A S D"
             aria-busy={!ready || animating}
             aria-label={ui.boardLabel(size, displayedMaxTile)}
+            aria-describedby="board-state"
             onContextMenu={(event) => event.preventDefault()}
             onPointerDown={(event) => { touchStart.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); }}
             onPointerMove={(event) => previewTouch(event.clientX, event.clientY)}
@@ -1131,7 +1179,7 @@ export default function Home() {
           >
           <div ref={gestureLayerRef} className="gesture-layer" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
           {Array.from({ length: size * size }, (_, index) => <div className="cell" key={index} />)}
-          <div className="tiles-layer">
+          <div className="tiles-layer" aria-hidden="true">
             {motions.length > 0 ? motions.map((tile) => (
               <div
                 key={tile.id}
@@ -1153,12 +1201,12 @@ export default function Home() {
                 key={`${r}-${c}-${value}`}
                 className={`tile static-tile ${tileClass(value)}${highlighted.some((point) => point.row === r && point.col === c) ? " tile-arrive" : ""}`}
                 style={{ gridColumn: c + 1, gridRow: r + 1 }}
-                aria-label={String(value)}
               >
                 <span>{value}</span>
               </div>
             ) : null))}
           </div>
+          <p id="board-state" className="sr-only">{board.map((row) => row.join(", ")).join(" / ")}</p>
           {winOpen && (
             <div className="board-message win-message" role="dialog" aria-modal="true" aria-live="assertive" aria-label={ui.winAria}>
               <span className="spark" aria-hidden="true">✦</span>
@@ -1192,9 +1240,9 @@ export default function Home() {
         </div>
       </section>
 
-      <p className="footer-tip" aria-hidden={confirmNew || helpOpen || undefined} inert={confirmNew || helpOpen || undefined}><strong>{ui.gameplay}</strong>{ui.gameplayText}</p>
+      <p className="footer-tip" aria-hidden={confirmNew || helpOpen || winOpen || gameOver || undefined} inert={confirmNew || helpOpen || winOpen || gameOver || undefined}><strong>{ui.gameplay}</strong>{ui.gameplayText}</p>
 
-      {needsAudioTap && soundOn && !confirmNew && !helpOpen && !winOpen && (
+      {needsAudioTap && soundOn && !confirmNew && !helpOpen && !winOpen && !gameOver && (
         <button className="music-prompt" onClick={() => void startMusic(true)} aria-label={ui.soundOn}>
           <span className="music-wave" aria-hidden="true"><i /><i /><i /></span>
           {ui.musicPrompt}
@@ -1219,7 +1267,7 @@ export default function Home() {
         <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setHelpOpen(false); }}>
           <div className="sheet help-sheet" role="dialog" aria-modal="true" aria-labelledby="help-title">
             <button autoFocus className="close-button" onClick={() => setHelpOpen(false)} aria-label={ui.closeHelp}>×</button>
-            <p className="sheet-kicker">HOW TO PLAY</p>
+            <p className="sheet-kicker">{ui.helpKicker}</p>
             <h2 id="help-title">{ui.howTo}</h2>
             <ol>
               <li><b>1</b><span>{ui.help1}</span></li>

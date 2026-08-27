@@ -20,6 +20,10 @@
 - 当前局和历史最高分完整日志导出
 - 本地自动保存进度、主题、语言及各棋盘最高分
 
+## 数据与隐私
+
+游戏不需要账号，也不接入广告或行为分析。进度、偏好和历史最高分只保存在当前浏览器中，不会上传到服务器；只有在你主动点击导出时，浏览器才会生成对局日志文件。清除站点数据会同时清除本地进度。
+
 ## 从源码运行
 
 需要 [Node.js](https://nodejs.org/) 22.13 或更高版本。npm 会随 Node.js 一起安装。
@@ -84,7 +88,7 @@ worker/          # Cloudflare Worker 入口
 docs/            # AI 架构、研究依据与验证合同
 ```
 
-根目录只保留框架、TypeScript、样式工具、许可证及部署流程必须读取的配置文件。AI 的信息边界、实现取舍和基准方法见 [`docs/ai.md`](./docs/ai.md)，项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)，第三方授权见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
+根目录只保留框架、TypeScript、样式工具、许可证及部署流程必须读取的配置文件；依赖、构建结果、发布缓存、测试报告和编辑器临时文件均由 `.gitignore` 排除。AI 的信息边界、实现取舍和基准方法见 [`docs/ai.md`](./docs/ai.md)，贡献与发布流程见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)，安全问题报告方式见 [`SECURITY.md`](./SECURITY.md)，项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)，第三方授权见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
 
 ## 许可证
 
