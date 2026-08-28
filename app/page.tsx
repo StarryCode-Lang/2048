@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { audioContextClass, beginAmbientLoop, playMergeTone, stopMusicEngine, type MusicEngine } from "./audio/ambient";
 import { GlassMenu } from "./components/glass-menu";
 import { nextSeededRandom, spawnRandomTile } from "./game/random";
 import { copyBoard, countEmpty, emptyBoard, hasMoves, isValidBoard, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game/engine";
+import { parseStoredGame, serializeStoredGame } from "./game/storage";
 import { AI_SPEEDS, aiBudgetFor, isEndgameSearch } from "./ai/timing";
 import { LANGUAGES, TRANSLATIONS, isLanguage, type Language } from "./i18n/messages";
 import { useModalFocus } from "./hooks/use-modal-focus";
 import { reconstructReplay } from "./replay/reconstruct";
+import { parseReplayPayload } from "./replay/import";
 import {
   getPreferredReplay,
   getReplaySummary,
@@ -114,6 +116,7 @@ function chooseFallbackMove(board: Board, anchor: AiCorner): Direction | null {
 }
 
 type AiDecision = { direction: Direction | null; anchor: AiCorner; strategy: "lock" | "recover"; depth: number; nodes: number; elapsedMs: number; movableTiles: number; confidence: number };
+type AiEngine = "search" | "expert";
 type AiPending = { id: number; resolve: (decision: AiDecision | null) => void };
 type AiPrefetch = { key: string; promise: Promise<AiDecision | null> };
 type ActiveGameReplay = {
@@ -267,6 +270,7 @@ export default function Home() {
   const [arrivalDuration, setArrivalDuration] = useState(150);
   const [aiRunning, setAiRunning] = useState(false);
   const [aiSpeedIndex, setAiSpeedIndex] = useState(1);
+  const [aiEngine, setAiEngine] = useState<AiEngine>("search");
   const [aiThought, setAiThought] = useState("等待开始");
   const [aiCorner, setAiCorner] = useState<AiCorner>(0);
   const [aiMoveCount, setAiMoveCount] = useState(0);
@@ -276,11 +280,12 @@ export default function Home() {
   const [aiStats, setAiStats] = useState({ nodes: 0, elapsedMs: 0, movableTiles: 0 });
   const [replaySummary, setReplaySummary] = useState<ReplaySummary | null>(null);
   const [language, setLanguage] = useState<Language>("zh");
-  const [openMenu, setOpenMenu] = useState<"language" | "speed" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"language" | "speed" | "engine" | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const ui = TRANSLATIONS[language];
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const boardElementRef = useRef<HTMLDivElement | null>(null);
+  const replayInputRef = useRef<HTMLInputElement | null>(null);
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
   const boardRef = useRef(board);
   const sizeRef = useRef(size);
@@ -362,16 +367,15 @@ export default function Home() {
         setLanguage(isLanguage(savedLanguage) ? savedLanguage : preferredLanguage(navigator.languages));
         const savedSpeedIndex = storedInteger(localStorage.getItem("2048-ai-speed"), 1, AI_SPEEDS.length - 1);
         setAiSpeedIndex(savedSpeedIndex);
-        const saved = localStorage.getItem(SAVE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const savedSize = Number(parsed.size) || DEFAULT_SIZE;
-          if (VALID_SIZES.includes(savedSize as 4 | 5 | 6) && isValidBoard(parsed.board, savedSize)) {
-            const savedSeed = (Number(parsed.rngSeed) >>> 0) || createGameSeed();
-            const savedScore = Number.isSafeInteger(Number(parsed.score)) && Number(parsed.score) >= 0 ? Number(parsed.score) : 0;
-            const savedMoves = Number.isSafeInteger(Number(parsed.moves)) && Number(parsed.moves) >= 0 ? Number(parsed.moves) : 0;
+        setAiEngine(localStorage.getItem("2048-ai-engine") === "expert" ? "expert" : "search");
+        const parsed = parseStoredGame(localStorage.getItem(SAVE_KEY));
+        if (parsed) {
+            const savedSize = parsed.size;
+            const savedSeed = parsed.rngSeed;
+            const savedScore = parsed.score;
+            const savedMoves = parsed.moves;
             rngSeedRef.current = savedSeed;
-            rngStateRef.current = (Number(parsed.rngState) >>> 0) || savedSeed;
+            rngStateRef.current = parsed.rngState;
             sizeRef.current = savedSize;
             setSize(savedSize);
             applyState(parsed.board, savedScore, savedMoves);
@@ -385,14 +389,6 @@ export default function Home() {
             })
               ? restoredReplay
               : createGameReplay(savedSize, savedSeed, savedSpeedIndex, parsed.board, rngStateRef.current, savedScore, savedMoves);
-          } else {
-            const seed = createGameSeed();
-            rngSeedRef.current = seed;
-            rngStateRef.current = seed;
-            const fresh = freshBoardOfSize(DEFAULT_SIZE, gameRandom);
-            applyState(fresh, 0, 0);
-            activeGameReplayRef.current = createGameReplay(DEFAULT_SIZE, seed, savedSpeedIndex, fresh, rngStateRef.current);
-          }
         } else {
           const seed = createGameSeed();
           rngSeedRef.current = seed;
@@ -420,16 +416,17 @@ export default function Home() {
     if (aiRunning && replayEventCount % 64 !== 0) return;
     const timer = window.setTimeout(() => {
       try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify({ size, board, score, moves, continued, rngSeed: rngSeedRef.current, rngState: rngStateRef.current, replay: serializeGameReplay(activeGameReplayRef.current) }));
+        localStorage.setItem(SAVE_KEY, JSON.stringify(serializeStoredGame({ size: size as 4 | 5 | 6, board, score, moves, continued, rngSeed: rngSeedRef.current, rngState: rngStateRef.current, replay: serializeGameReplay(activeGameReplayRef.current) })));
         localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
         localStorage.setItem("2048-sound", soundOn ? "on" : "off");
         localStorage.setItem("2048-theme", dark ? "dark" : "light");
         localStorage.setItem("2048-ai-speed", String(aiSpeedIndex));
+        localStorage.setItem("2048-ai-engine", aiEngine);
         localStorage.setItem("2048-language", language);
       } catch { /* gameplay remains available without storage */ }
     }, aiRunning ? 0 : 500);
     return () => window.clearTimeout(timer);
-  }, [ready, size, board, score, moves, continued, bests, soundOn, dark, aiSpeedIndex, aiRunning, language]);
+  }, [ready, size, board, score, moves, continued, bests, soundOn, dark, aiSpeedIndex, aiEngine, aiRunning, language]);
 
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : language;
@@ -446,12 +443,13 @@ export default function Home() {
     if (!ready) return;
     const flush = () => {
       try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify({ size: sizeRef.current, board: boardRef.current, score: scoreRef.current, moves: movesRef.current, continued, rngSeed: rngSeedRef.current, rngState: rngStateRef.current, replay: serializeGameReplay(activeGameReplayRef.current) }));
+        localStorage.setItem(SAVE_KEY, JSON.stringify(serializeStoredGame({ size: sizeRef.current as 4 | 5 | 6, board: boardRef.current, score: scoreRef.current, moves: movesRef.current, continued, rngSeed: rngSeedRef.current, rngState: rngStateRef.current, replay: serializeGameReplay(activeGameReplayRef.current) })));
+        localStorage.setItem("2048-ai-engine", aiEngine);
       } catch { /* gameplay remains available without storage */ }
     };
     window.addEventListener("pagehide", flush);
     return () => window.removeEventListener("pagehide", flush);
-  }, [continued, ready]);
+  }, [aiEngine, continued, ready]);
 
   const refreshReplaySummary = useCallback((targetSize = sizeRef.current) => {
     void getReplaySummary(targetSize).then((summary) => {
@@ -505,14 +503,14 @@ export default function Home() {
     return () => observer.disconnect();
   }, [ready, size]);
 
-  const requestAiDecision = useCallback((currentBoard: Board, anchor: AiCorner, budgetMs: number) => {
+  const requestAiDecision = useCallback((currentBoard: Board, anchor: AiCorner, budgetMs: number, engine: AiEngine) => {
     const worker = aiWorkerRef.current;
     if (!worker) return Promise.resolve(null as AiDecision | null);
     aiPendingRef.current?.resolve(null);
     const id = ++aiRequestIdRef.current;
     return new Promise<AiDecision | null>((resolve) => {
       aiPendingRef.current = { id, resolve };
-      worker.postMessage({ id, board: currentBoard, anchor, budgetMs });
+      worker.postMessage({ id, board: currentBoard, anchor, budgetMs, engine });
     });
   }, []);
 
@@ -615,8 +613,8 @@ export default function Home() {
     setAiThought(message);
   }, [ui.paused]);
 
-  const aiBoardKey = useCallback((currentBoard: Board, speedIndex: number) => (
-    `${speedIndex}|${currentBoard.map((row) => row.join(",")).join(";")}`
+  const aiBoardKey = useCallback((currentBoard: Board, speedIndex: number, engine: AiEngine) => (
+    `${engine}|${speedIndex}|${currentBoard.map((row) => row.join(",")).join(";")}`
   ), []);
 
   const feedback = useCallback((gained: number) => {
@@ -753,10 +751,10 @@ export default function Home() {
     feedback(result.gained);
 
     if (source === "ai" && !reachedDeadEnd) {
-      const key = aiBoardKey(nextBoard, aiSpeedIndex);
+      const key = aiBoardKey(nextBoard, aiSpeedIndex, aiEngine);
       aiPrefetchRef.current = {
         key,
-        promise: requestAiDecision(nextBoard, aiCornerRef.current, aiBudgetFor(nextBoard, aiSpeedIndex)),
+        promise: requestAiDecision(nextBoard, aiCornerRef.current, aiBudgetFor(nextBoard, aiSpeedIndex), aiEngine),
       };
     }
 
@@ -782,7 +780,7 @@ export default function Home() {
         } else setWinOpen(true);
       }
     }, settleMs);
-  }, [aiBoardKey, aiSpeedIndex, applyState, confirmNew, continued, feedback, gameRandom, helpOpen, pauseAi, persistReplaySnapshot, queueReplaySnapshot, requestAiDecision, triggerGestureEffect, ui.continued, ui.fairEnd, ui.takeover, winOpen]);
+  }, [aiBoardKey, aiEngine, aiSpeedIndex, applyState, confirmNew, continued, feedback, gameRandom, helpOpen, pauseAi, persistReplaySnapshot, queueReplaySnapshot, requestAiDecision, triggerGestureEffect, ui.continued, ui.fairEnd, ui.takeover, winOpen]);
 
   useEffect(() => {
     if (animating || !queuedDirection.current) return;
@@ -817,7 +815,7 @@ export default function Home() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
+      const target = event.target instanceof HTMLElement ? event.target : null;
       const isInteractiveControl = Boolean(target?.closest("button, a, input, select, textarea, [role='option'], [role='listbox']"));
       const isBoardInteraction = Boolean(target?.closest(".board"));
       const directions: Record<string, Direction | undefined> = {
@@ -922,11 +920,11 @@ export default function Home() {
     const elapsed = lastAiMoveStartRef.current ? performance.now() - lastAiMoveStartRef.current : timing.target;
     const waitMs = Math.max(0, timing.target - elapsed);
     const timer = window.setTimeout(() => {
-      const key = aiBoardKey(boardRef.current, aiSpeedIndex);
+      const key = aiBoardKey(boardRef.current, aiSpeedIndex, aiEngine);
       const prefetched = aiPrefetchRef.current?.key === key ? aiPrefetchRef.current.promise : null;
       aiPrefetchRef.current = null;
       const budget = aiBudgetFor(boardRef.current, aiSpeedIndex);
-      const decisionPromise = prefetched || requestAiDecision(boardRef.current, aiCornerRef.current, budget);
+      const decisionPromise = prefetched || requestAiDecision(boardRef.current, aiCornerRef.current, budget, aiEngine);
       void decisionPromise.then((decision) => {
         if (!aiRunningRef.current || animatingRef.current) return;
         const direction = decision?.direction || chooseFallbackMove(boardRef.current, aiCornerRef.current);
@@ -949,7 +947,7 @@ export default function Home() {
       });
     }, waitMs);
     return () => window.clearTimeout(timer);
-  }, [aiBoardKey, aiRunning, aiSpeedIndex, animating, board, confirmNew, helpOpen, move, pauseAi, requestAiDecision, ui.direction, ui.endgame, ui.fastDecision, ui.levels, ui.lock, ui.noMoves, ui.sequence, winOpen]);
+  }, [aiBoardKey, aiEngine, aiRunning, aiSpeedIndex, animating, board, confirmNew, helpOpen, move, pauseAi, requestAiDecision, ui.direction, ui.endgame, ui.fastDecision, ui.levels, ui.lock, ui.noMoves, ui.sequence, winOpen]);
 
   const resetDragPreview = () => {
     const element = boardElementRef.current;
@@ -990,6 +988,48 @@ export default function Home() {
     resetDragPreview();
     if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
     move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+  };
+
+  const importReplayFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+    try {
+      const parsed = parseReplayPayload(await file.text());
+      pauseAi(ui.paused);
+      if (moveTimer.current) window.clearTimeout(moveTimer.current);
+      animatingRef.current = false;
+      setAnimating(false);
+      setMotions([]);
+      setHighlighted([]);
+      setHistory([]);
+      sizeRef.current = parsed.size;
+      setSize(parsed.size);
+      rngSeedRef.current = parsed.seed;
+      rngStateRef.current = parsed.finalRngState;
+      applyState(parsed.finalBoard, parsed.score, parsed.moves);
+      setContinued(parsed.maxTile >= 2048);
+      setWinOpen(false);
+      setAiMoveCount(parsed.events.filter((entry) => entry.kind === "move" && entry.source === "ai").length);
+      setAiTrail([]);
+      setAiStats({ nodes: 0, elapsedMs: 0, movableTiles: 0 });
+      activeGameReplayRef.current = {
+        algorithm: parsed.algorithm,
+        rules: parsed.rules,
+        size: parsed.size,
+        seed: parsed.seed,
+        speedIndex: parsed.speedIndex,
+        initialBoard: parsed.initialBoard.map((row) => [...row]),
+        initialRngState: parsed.initialRngState,
+        initialScore: parsed.initialScore,
+        initialMoves: parsed.initialMoves,
+        events: [...parsed.events],
+        trace: parsed.trace.map((entry) => ({ ...entry })),
+      };
+      showToast(ui.importedReplay);
+    } catch {
+      showToast(ui.importFailed);
+    }
   };
 
   const downloadJson = (payload: string, filename: string) => {
@@ -1134,10 +1174,20 @@ export default function Home() {
             <span className="ai-core" aria-hidden="true">AI</span>
             <div>
               <strong>{ui.aiChallenge}</strong>
-              <small>{aiRunning ? aiThought : `${ui.fairForward} · ${ui.nextTarget} ${nextTarget}`}</small>
+            <small>{aiRunning ? `${aiEngine === "expert" ? ui.engineExpert : ui.engineSearch} · ${aiThought}` : `${aiEngine === "expert" ? ui.engineExpert : ui.engineSearch} · ${ui.fairForward} · ${ui.nextTarget} ${nextTarget}`}</small>
             </div>
           </div>
           <div className="ai-actions">
+            <GlassMenu
+              compact
+              value={aiEngine}
+              label={ui.aiEngine}
+              tooltip={ui.aiEngine}
+              open={openMenu === "engine"}
+              options={[{ value: "search", label: ui.engineSearch, short: "⌕" }, { value: "expert", label: ui.engineExpert, short: "✦" }]}
+              onToggle={() => setOpenMenu((current) => current === "engine" ? null : "engine")}
+              onChange={(value) => { pauseAi(ui.paused); setAiEngine(value as AiEngine); setOpenMenu(null); }}
+            />
             <GlassMenu
               value={String(aiSpeedIndex)}
               label={ui.aiSpeed}
@@ -1176,6 +1226,8 @@ export default function Home() {
               <span>{aiTrail.length ? aiTrail.map((direction) => DIRECTION_ARROWS[direction]).join(" ") : ui.preserveSearch}</span>
               <small>{aiStats.nodes > 0 ? `${aiStats.nodes.toLocaleString()} · ${emptyCount} · ` : ""}{ui.officialFair}</small>
               <div className="replay-actions">
+                <input ref={replayInputRef} className="sr-only" type="file" accept=".2048log,application/json,.json" onChange={(event) => void importReplayFile(event)} />
+                <button className="replay-export" onClick={() => replayInputRef.current?.click()} aria-label={ui.importReplayHint} data-tooltip={ui.importReplayHint}><i aria-hidden="true">↑</i>{ui.importReplay}</button>
                 <button className="replay-export" onClick={downloadCurrentReplay} disabled={!ready} aria-label={ui.exportCurrentHint} data-tooltip={ui.exportCurrentHint}><i aria-hidden="true">↓</i>{ui.currentRound} · {moves} {ui.steps}</button>
                 {replaySummary && <button className="replay-export" onClick={() => void downloadChampionReplay()} aria-label={ui.exportRecordHint} data-tooltip={ui.exportRecordHint}><i aria-hidden="true">↓</i>{ui.record} · {Math.max(1, Math.ceil(replaySummary.bytes / 1024))}KB</button>}
               </div>

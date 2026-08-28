@@ -19,12 +19,14 @@ export function simulateAiGame({
   maxMoves = 600,
   nodeBudget = 256,
   anchor = 0,
+  engine = "search",
 }: {
   seed: number;
   size?: number;
   maxMoves?: number;
   nodeBudget?: number;
   anchor?: Corner;
+  engine?: "search" | "expert";
 }): AiSimulationResult {
   resetAiCaches();
   let rngState = seed >>> 0 || 1;
@@ -46,6 +48,7 @@ export function simulateAiGame({
       anchor,
       budgetMs: 30,
       nodeBudget,
+      engine,
     });
     if (!decision.direction) break;
     const shifted = moveBoard(board, decision.direction, moves + 1);

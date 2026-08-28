@@ -60,6 +60,8 @@ export type ReplaySummary = {
 
 const DB_NAME = "2048-ai-replays-v1";
 const STORE_NAME = "champions";
+const META_STORE_NAME = "meta";
+const DB_VERSION = 2;
 
 export function packDirections(directions: DirectionCode[]) {
   const packed = new Uint8Array(Math.ceil(directions.length / 4));
@@ -138,9 +140,13 @@ export function unpackTrace(packed: Uint8Array) {
 
 function openReplayDb() {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME, { keyPath: "key" });
+      if (!request.result.objectStoreNames.contains(META_STORE_NAME)) {
+        const meta = request.result.createObjectStore(META_STORE_NAME, { keyPath: "key" });
+        meta.put({ key: "schema", version: DB_VERSION, upgradedAt: Date.now() });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
