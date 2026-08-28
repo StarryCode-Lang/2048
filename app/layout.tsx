@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   description: "支持 4×4、5×5、6×6 与全盘 AI 挑战的经典 2048 数字合成游戏。",
   applicationName: "2048 · 数字合成",
   alternates: { canonical: "/" },
+  manifest: "/manifest.webmanifest",
   keywords: ["2048", "数字游戏", "AI 2048", "益智游戏", "网页游戏"],
   robots: { index: true, follow: true },
   openGraph: {

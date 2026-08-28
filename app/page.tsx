@@ -411,6 +411,11 @@ export default function Home() {
   }, [applyState, gameRandom]);
 
   useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* offline support is optional */ });
+  }, []);
+
+  useEffect(() => {
     if (!ready) return;
     const replayEventCount = activeGameReplayRef.current?.events.length ?? 0;
     if (aiRunning && replayEventCount % 64 !== 0) return;
@@ -1288,7 +1293,7 @@ export default function Home() {
               </div>
             ) : null))}
           </div>
-          <p id="board-state" className="sr-only">{board.map((row) => row.join(", ")).join(" / ")}</p>
+          <p id="board-state" className="sr-only" aria-live="polite">{board.map((row) => row.join(", ")).join(" / ")}</p>
           {winOpen && (
             <div className="board-message win-message" role="dialog" aria-modal="true" aria-live="assertive" aria-label={ui.winAria}>
               <span className="spark" aria-hidden="true">✦</span>

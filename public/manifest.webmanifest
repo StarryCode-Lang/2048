@@ -1,0 +1,17 @@
+{
+  "name": "2048 · 数字合成",
+  "short_name": "2048",
+  "description": "支持多尺寸棋盘与本地 AI 挑战的经典 2048 游戏。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf2f7",
+  "theme_color": "#edf2f7",
+  "lang": "zh-CN",
+  "icons": [{
+    "src": "/favicon.svg",
+    "sizes": "any",
+    "type": "image/svg+xml",
+    "purpose": "any maskable"
+  }]
+}

@@ -10,6 +10,7 @@ const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".woff2": "font/woff2",
@@ -65,6 +66,11 @@ test("renders production HTML and every emitted asset is served by the Worker", 
   assert.doesNotMatch(html, developmentPreviewMeta);
   assert.match(html, /<h1[^>]*>2048<\/h1>/i);
   assert.match(html, /<link[^>]+rel=["']canonical["'][^>]+href=["']https:\/\/ai2048\.roberfan\.chatgpt\.site\/?["']/i);
+
+  for (const pathname of ["/manifest.webmanifest", "/sw.js", "/favicon.svg"]) {
+    const asset = await worker.fetch(new Request(`http://localhost${pathname}`), env, ctx);
+    assert.equal(asset.status, 200, `${pathname} was not served`);
+  }
 
   const assetPaths = [...html.matchAll(/(?:href|src)=["']([^"']+)["']/gi)]
     .map((match) => new URL(match[1], "http://localhost").pathname)

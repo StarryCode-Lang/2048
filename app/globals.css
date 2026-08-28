@@ -344,3 +344,14 @@ h1 { margin: 0; font-size: clamp(64px, 19vw, 92px); line-height: .98; letter-spa
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+@media (prefers-reduced-transparency: reduce) {
+  .game-shell, .board, .cell, .tile, .score-card, .mode-switcher, .ai-bar, .ai-route-panel, .glass-menu-trigger, .glass-popover, .sheet { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .game-shell { --panel: rgba(245,248,251,.98); --board: rgba(229,236,244,.98); }
+  .game-shell.dark { --panel: rgba(28,38,49,.98); --board: rgba(18,26,35,.98); }
+}
+@media (prefers-contrast: more), (forced-colors: active) {
+  .game-shell { --line: rgba(35,43,54,.72); }
+  .game-shell.dark { --line: rgba(255,255,255,.72); }
+  .board, .score-card, .mode-switcher, .ai-bar, .ai-route-panel, .glass-menu-trigger, .glass-popover, .sheet { border-width: 2px; }
+  .tile, .cell, button:focus-visible { border-color: currentColor; }
+}
