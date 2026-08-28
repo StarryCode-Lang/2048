@@ -1,6 +1,7 @@
 export {};
 
 import { BITBOARD_OVERFLOW, decideBitboard, resetBitboardCaches, supportsBitboard } from "./bitboard.ts";
+import { decideExpert } from "./expert.ts";
 
 type Direction = "up" | "down" | "left" | "right";
 type Corner = 0 | 1 | 2 | 3;
@@ -18,6 +19,7 @@ type RequestMessage = {
   budgetMs: number;
   /** Offline regression harness only; the browser always uses a wall-clock budget. */
   nodeBudget?: number;
+  engine?: "search" | "expert";
 };
 type ResponseMessage = {
   id: number;
@@ -434,6 +436,7 @@ export function decideArray(message: RequestMessage): ResponseMessage {
 }
 
 export function decide(message: RequestMessage): ResponseMessage {
+  if (message.engine === "expert") return decideExpert(message.board, message.anchor, message.budgetMs, message.id);
   if (supportsBitboard(message.board)) {
     try {
       return decideBitboard(message);
