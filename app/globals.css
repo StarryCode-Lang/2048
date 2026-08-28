@@ -88,13 +88,14 @@ h1 { margin: 0; font-size: clamp(64px, 19vw, 92px); line-height: .98; letter-spa
 .glass-menu.compact .glass-menu-trigger > i { position: absolute; right: 5px; bottom: 4px; font-size: 7px; }
 .glass-menu-trigger:active { transform: scale(.94); }
 .dark .glass-menu-trigger { background: rgba(255,255,255,.06); }
-.glass-popover { position: absolute; z-index: 55; inset-inline-end: 0; bottom: calc(100% + 9px); display: grid; gap: 4px; min-width: 154px; padding: 6px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: rgba(247,250,253,.97); -webkit-backdrop-filter: blur(34px) saturate(1.55); backdrop-filter: blur(34px) saturate(1.55); box-shadow: 0 22px 58px rgba(35,50,72,.24), inset 0 1px rgba(255,255,255,.82); animation: menuIn .16s cubic-bezier(.2,.85,.25,1); }
+.glass-popover { position: fixed; z-index: 100; display: grid; gap: 4px; min-width: 154px; max-height: calc(100dvh - 16px); overflow-y: auto; padding: 6px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: rgba(247,250,253,.97); -webkit-backdrop-filter: blur(34px) saturate(1.55); backdrop-filter: blur(34px) saturate(1.55); box-shadow: 0 22px 58px rgba(35,50,72,.24), inset 0 1px rgba(255,255,255,.82); animation: menuIn .16s cubic-bezier(.2,.85,.25,1); }
 .glass-popover button { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; padding: 7px 10px; border: 0; border-radius: 10px; color: var(--ink); background: transparent; font-size: 12px; font-weight: 750; text-align: start; white-space: nowrap; cursor: pointer; transition: color .12s ease, background .12s ease, transform .1s ease; }
 .glass-popover button i { color: #655be0; font-style: normal; font-weight: 950; }
 .glass-popover button.selected { color: #5f56d8; background: rgba(111,101,231,.12); }
 .glass-popover button:active { transform: scale(.97); }
 @media (hover: hover) { .glass-popover button:hover { background: rgba(111,101,231,.1); } }
-.dark .glass-popover { background: rgba(27,37,48,.97); }
+.dark .glass-popover { color: #f2f5f8; background: rgba(27,37,48,.97); }
+.dark .glass-popover button { color: #f2f5f8; }
 .dark .glass-popover button.selected { color: #b7b2ff; background: rgba(148,139,255,.14); }
 .sound-button { position: relative; }
 .sound-button.is-playing::after { content: ""; position: absolute; right: 5px; bottom: 5px; width: 6px; height: 6px; border: 1px solid rgba(255,255,255,.85); border-radius: 50%; background: #45c86b; box-shadow: 0 0 0 3px rgba(69,200,107,.14); }
@@ -264,6 +265,12 @@ h1 { margin: 0; font-size: clamp(64px, 19vw, 92px); line-height: .98; letter-spa
 @keyframes routePanelIn { from { transform: translateY(-5px) scale(.985); opacity: 0; } }
 @keyframes menuIn { from { transform: translateY(5px) scale(.98); opacity: 0; } }
 @keyframes toastIn { from { transform: translate(-50%,10px) scale(.96); opacity: 0; } }
+
+@media (max-width: 959px) {
+  .game { display: flex; flex-direction: column; }
+  .game > .board-stack { order: 5; }
+  .game > .ai-route-panel { order: 6; }
+}
 
 @media (max-width: 520px) {
   [data-tooltip]::after { display: none; }

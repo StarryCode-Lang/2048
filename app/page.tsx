@@ -8,6 +8,7 @@ import { copyBoard, countEmpty, emptyBoard, hasMoves, isValidBoard, moveBoard, s
 import { AI_SPEEDS, aiBudgetFor, isEndgameSearch } from "./ai/timing";
 import { LANGUAGES, TRANSLATIONS, isLanguage, type Language } from "./i18n/messages";
 import { useModalFocus } from "./hooks/use-modal-focus";
+import { reconstructReplay } from "./replay/reconstruct";
 import {
   getPreferredReplay,
   getReplaySummary,
@@ -216,6 +217,24 @@ function restoreGameReplay(value: unknown): ActiveGameReplay | null {
   }
 }
 
+function replayMatchesSnapshot(replay: ActiveGameReplay, snapshot: Snapshot) {
+  try {
+    const reconstructed = reconstructReplay({
+      board: replay.initialBoard,
+      score: replay.initialScore,
+      moves: replay.initialMoves,
+      rngState: replay.initialRngState,
+    }, replay.events);
+    return replay.size === snapshot.board.length
+      && sameBoard(reconstructed.board, snapshot.board)
+      && reconstructed.score === snapshot.score
+      && reconstructed.moves === snapshot.moves
+      && reconstructed.rngState === (snapshot.rngState >>> 0);
+  } catch {
+    return false;
+  }
+}
+
 function tileClass(value: number) {
   return `${value > 2048 ? "tile-super" : `tile-${value}`} tile-digits-${String(value).length}`;
 }
@@ -233,7 +252,8 @@ export default function Home() {
   const [confirmNew, setConfirmNew] = useState(false);
   const [pendingSize, setPendingSize] = useState<number | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
+  // Keep first visit silent. Existing explicit preferences are restored during hydration.
+  const [soundOn, setSoundOn] = useState(false);
   const [musicPlaying, setMusicPlaying] = useState(false);
   const [needsAudioTap, setNeedsAudioTap] = useState(false);
   const [dark, setDark] = useState(false);
@@ -335,7 +355,7 @@ export default function Home() {
         const savedBests = storedRecord(BESTS_KEY);
         const legacyBest = safeScore(localStorage.getItem("2048-best-v1"));
         setBests({ 4: safeScore(savedBests[4], legacyBest), 5: safeScore(savedBests[5]), 6: safeScore(savedBests[6]) });
-        setSoundOn(localStorage.getItem("2048-sound") !== "off");
+        setSoundOn(localStorage.getItem("2048-sound") === "on");
         const savedTheme = localStorage.getItem("2048-theme");
         setDark(savedTheme === "dark" || (savedTheme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches));
         const savedLanguage = localStorage.getItem("2048-language");
@@ -356,8 +376,15 @@ export default function Home() {
             setSize(savedSize);
             applyState(parsed.board, savedScore, savedMoves);
             setContinued(Boolean(parsed.continued));
-            activeGameReplayRef.current = restoreGameReplay(parsed.replay)
-              ?? createGameReplay(savedSize, savedSeed, savedSpeedIndex, parsed.board, rngStateRef.current, savedScore, savedMoves);
+            const restoredReplay = restoreGameReplay(parsed.replay);
+            activeGameReplayRef.current = restoredReplay && replayMatchesSnapshot(restoredReplay, {
+              board: parsed.board,
+              score: savedScore,
+              moves: savedMoves,
+              rngState: rngStateRef.current,
+            })
+              ? restoredReplay
+              : createGameReplay(savedSize, savedSeed, savedSpeedIndex, parsed.board, rngStateRef.current, savedScore, savedMoves);
           } else {
             const seed = createGameSeed();
             rngSeedRef.current = seed;
@@ -547,7 +574,7 @@ export default function Home() {
   useEffect(() => {
     if (!ready) return;
     const frame = requestAnimationFrame(() => {
-      if (soundOn) void startMusic(true);
+      if (soundOn) void startMusic(false);
       else stopMusic();
     });
     return () => cancelAnimationFrame(frame);
@@ -790,18 +817,21 @@ export default function Home() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isInteractiveControl = Boolean(target?.closest("button, a, input, select, textarea, [role='option'], [role='listbox']"));
+      const isBoardInteraction = Boolean(target?.closest(".board"));
       const directions: Record<string, Direction | undefined> = {
         ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down",
         ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right",
       };
       const direction = directions[event.key];
-      if (direction) {
+      if (direction && (!isInteractiveControl || isBoardInteraction)) {
         event.preventDefault();
         if (soundOn && !musicPlaying) void startMusic(true);
         move(direction);
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") { event.preventDefault(); undo(); }
-      if (event.key === "Escape") { setHelpOpen(false); setConfirmNew(false); setWinOpen(false); setPendingSize(null); }
+      if (event.key === "Escape") { setOpenMenu(null); setHelpOpen(false); setConfirmNew(false); setWinOpen(false); setPendingSize(null); }
     };
     window.addEventListener("keydown", onKey, { passive: false });
     return () => window.removeEventListener("keydown", onKey);

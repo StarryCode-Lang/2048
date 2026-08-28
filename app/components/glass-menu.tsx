@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 type GlassMenuOption = {
   value: string;
@@ -34,8 +35,54 @@ export function GlassMenu({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const pendingFocusIndexRef = useRef<number | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   const selected = options[selectedIndex] ?? options[0];
+
+  useLayoutEffect(() => {
+    if (!open || typeof window === "undefined") return;
+
+    const updatePosition = () => {
+      const trigger = triggerRef.current;
+      const popover = popoverRef.current;
+      if (!trigger || !popover) return;
+      const triggerRect = trigger.getBoundingClientRect();
+      const width = popover.getBoundingClientRect().width || 154;
+      const height = popover.getBoundingClientRect().height;
+      const gutter = 8;
+      const left = Math.min(
+        Math.max(gutter, triggerRect.right - width),
+        Math.max(gutter, window.innerWidth - width - gutter),
+      );
+      const below = triggerRect.bottom + 9;
+      const above = triggerRect.top - height - 9;
+      const top = Math.min(
+        Math.max(gutter, below <= window.innerHeight - gutter ? below : above),
+        Math.max(gutter, window.innerHeight - height - gutter),
+      );
+      setPopoverPosition({ top, left });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition, { passive: true });
+    window.addEventListener("scroll", updatePosition, { passive: true, capture: true });
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updatePosition) : null;
+    if (observer) {
+      if (triggerRef.current) observer.observe(triggerRef.current);
+      if (popoverRef.current) observer.observe(popoverRef.current);
+    }
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      observer?.disconnect();
+    };
+  }, [open, options.length]);
+
+  const toggleMenu = () => {
+    if (!open) setPopoverPosition(null);
+    onToggle();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +108,7 @@ export function GlassMenu({
         aria-controls={menuId}
         aria-expanded={open}
         data-tooltip={tooltip}
-        onClick={onToggle}
+        onClick={toggleMenu}
         onKeyDown={(event) => {
           if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
           event.preventDefault();
@@ -69,15 +116,23 @@ export function GlassMenu({
           const target = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : event.key === "ArrowUp" ? selectedIndex - 1 : selectedIndex + 1;
           if (!open) {
             pendingFocusIndexRef.current = target;
-            onToggle();
+            toggleMenu();
           } else focusOption(target);
         }}
       >
         <span dir={selected.dir}>{compact ? selected.short ?? selected.label : selected.label}</span>
         <i aria-hidden="true">⌄</i>
       </button>
-      {open && (
-        <div id={menuId} className="glass-popover" role="listbox" aria-label={label}>
+      {open && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          id={menuId}
+          className="glass-popover"
+          role="listbox"
+          aria-label={label}
+          data-menu-root="true"
+          style={popoverPosition ? { top: `${popoverPosition.top}px`, left: `${popoverPosition.left}px` } : { visibility: "hidden" }}
+        >
           {options.map((option, index) => (
             <button
               ref={(element) => { optionRefs.current[index] = element; }}
@@ -96,7 +151,7 @@ export function GlassMenu({
                 if (event.key === "Escape") {
                   event.preventDefault();
                   event.stopPropagation();
-                  onToggle();
+                  toggleMenu();
                   requestAnimationFrame(() => triggerRef.current?.focus());
                   return;
                 }
@@ -111,7 +166,8 @@ export function GlassMenu({
               <i aria-hidden="true">{option.value === value ? "✓" : ""}</i>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
