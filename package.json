@@ -30,9 +30,10 @@
     "test:replay": "node --experimental-strip-types --test tests/replay-log.test.mjs tests/replay-import.test.mjs",
     "test:rendered": "node --test tests/rendered-html.test.mjs",
     "validate:artifact": "node scripts/validate-artifact.mjs",
+    "check:bundle": "node scripts/check-bundle-budget.mjs",
     "audit:all": "node scripts/npm-audit.mjs",
     "audit:prod": "node scripts/npm-audit.mjs --omit=dev",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build:verified && npm run test:rendered && npm run audit:all",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build:verified && npm run check:bundle && npm run test:rendered && npm run audit:all",
     "lint": "eslint app build scripts tests worker *.mjs *.ts"
   },
   "dependencies": {

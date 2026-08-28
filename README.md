@@ -15,10 +15,10 @@
 - 跟手的移动、合并、光晕与粒子反馈
 - 支持浅色、深色和 Liquid Glass 视觉风格
 - 中文、English、Français、Español、Русский、العربية
-- AI 自动挑战，4×4 使用高吞吐位棋盘 Expectimax，支持极速、100ms、500ms 三档速度
+- AI 自动挑战，4×4 使用高吞吐位棋盘 Expectimax，支持极速、100ms、500ms 三档速度；可按需切换 Expert afterstate 实验引擎
 - AI 挑战全程禁止撤回，不预知下一随机块
-- 当前局和历史最高分完整日志导出
-- 本地自动保存进度、主题、语言及各棋盘最高分
+- 当前局和历史最高分完整日志导出，也可导入并验证完整回放
+- 本地自动保存进度、主题、语言及各棋盘最高分；支持安装为离线网页应用
 
 ## 数据与隐私
 
@@ -63,7 +63,7 @@ npm run verify
 
 - React 19 + TypeScript
 - Vinext / Vite
-- Web Worker AI 搜索
+- Web Worker AI 搜索与 Expert afterstate 实验引擎
 - Web Audio API
 - IndexedDB + LocalStorage
 
@@ -74,14 +74,14 @@ app/
 ├── ai/          # AI 搜索 Worker、4×4 位棋盘、时间预算与确定性模拟
 ├── audio/       # 背景音乐与合并音效
 ├── components/  # 可复用界面组件
-├── game/        # 官方规则、移动与随机生成
+├── game/        # 官方规则、移动、随机生成与版本化存档
 ├── hooks/       # 焦点管理等交互 Hook
 ├── i18n/        # 六种界面语言
-├── replay/      # 完整对局日志编码、持久化与重建
+├── replay/      # 完整对局日志编码、导入、持久化与重建
 ├── page.tsx     # 游戏界面与交互
 └── globals.css  # 响应式 Liquid Glass 样式
 build/           # Sites 构建适配
-public/          # 图标与社交预览图
+public/          # 图标、社交预览图、PWA 清单与离线 Service Worker
 scripts/         # 构建验证与 AI 基准
 tests/           # 规则、AI、回放和国际化测试
 worker/          # Cloudflare Worker 入口
