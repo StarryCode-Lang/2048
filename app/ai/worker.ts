@@ -19,7 +19,7 @@ type RequestMessage = {
   budgetMs: number;
   /** Offline regression harness only; the browser always uses a wall-clock budget. */
   nodeBudget?: number;
-  engine?: "search" | "expert";
+  engine?: "search" | "expert" | "adaptive";
 };
 type ResponseMessage = {
   id: number;
@@ -436,7 +436,12 @@ export function decideArray(message: RequestMessage): ResponseMessage {
 }
 
 export function decide(message: RequestMessage): ResponseMessage {
-  if (message.engine === "expert") return decideExpert(message.board, message.anchor, message.budgetMs, message.id);
+  const values = message.board.flat();
+  const adaptiveUsesSearch = message.engine === "adaptive"
+    && (Math.max(...values) >= 256 || values.filter((value) => value === 0).length <= 6);
+  if (message.engine === "expert" || (message.engine === "adaptive" && !adaptiveUsesSearch)) {
+    return decideExpert(message.board, message.anchor, message.budgetMs, message.id, message.nodeBudget);
+  }
   if (supportsBitboard(message.board)) {
     try {
       return decideBitboard(message);

@@ -26,7 +26,7 @@ export function simulateAiGame({
   maxMoves?: number;
   nodeBudget?: number;
   anchor?: Corner;
-  engine?: "search" | "expert";
+  engine?: "search" | "expert" | "adaptive";
 }): AiSimulationResult {
   resetAiCaches();
   let rngState = seed >>> 0 || 1;

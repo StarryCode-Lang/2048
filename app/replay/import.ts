@@ -40,7 +40,7 @@ function safeCounter(value: unknown, label: string) {
   return parsed;
 }
 
-/** Parse v1-v3 exported logs and verify every action before exposing them to playback. */
+/** Parse v1-v4 exported logs and verify every action before exposing them to playback. */
 export function parseReplayPayload(raw: string): ImportedReplay {
   const payload = JSON.parse(raw) as Record<string, unknown>;
   const size = Number(payload.size);

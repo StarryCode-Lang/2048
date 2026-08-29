@@ -9,7 +9,7 @@
 
 ## 目录职责
 
-- `app/ai/`：AI 搜索、4×4 位棋盘、通用回退、速度预算与确定性模拟。
+- `app/ai/`：AI 搜索、4×4 位棋盘、自适应专家、通用回退、速度预算与确定性模拟。
 - `app/game/`：棋盘规则、随机生成与版本化本地存档。
 - `app/replay/`：日志压缩、导入、持久化、导出和确定性重建。
 - `app/i18n/`：联合国六种官方语言。
@@ -17,6 +17,8 @@
 - `public/`：图标、PWA Manifest 与离线 Service Worker。
 - `scripts/`：构建、包体预算与基准命令；`tests/`：自动化回归测试。
 - `docs/ai.md`：AI 信息边界、算法取舍、研究来源和基准合同。
+
+Search 是稳定默认引擎。自适应专家只在前期使用 afterstate 评分，达到 256 或空格不超过 6 时回到 Search；只有长短局固定种子门槛同时通过时才能继续作为发布选项。
 
 ## 修改后的最低验证
 
@@ -26,6 +28,7 @@ npm run test:fairness
 npm run test:ai
 npm run test:replay
 npm run test:i18n
+npm run test:release
 npm run check:bundle
 npm run build
 ```

@@ -27,3 +27,17 @@ test("expert engine works on larger boards without reading RNG state", () => {
   assert.ok(decision.nodes > 0);
   assert.ok(decision.elapsedMs >= 0);
 });
+
+test("expert engine honors a deterministic node budget without root-order drift", () => {
+  const board = [
+    [64, 32, 16, 8],
+    [32, 16, 8, 4],
+    [16, 8, 4, 2],
+    [0, 4, 2, 0],
+  ];
+  const first = decideExpert(board, 0, 120, 11, 256);
+  const second = decideExpert(board, 0, 30, 11, 256);
+  assert.equal(first.direction, second.direction);
+  assert.equal(first.nodes, second.nodes);
+  assert.ok(first.nodes <= 256);
+});

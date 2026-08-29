@@ -22,9 +22,11 @@ interface ExecutionContext {
 
 function withSecurityHeaders(response: Response) {
   const headers = new Headers(response.headers);
+  headers.set("Content-Security-Policy", "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; img-src 'self' data:; manifest-src 'self'; media-src 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; worker-src 'self'");
   headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "DENY");
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

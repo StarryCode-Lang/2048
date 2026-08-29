@@ -18,7 +18,9 @@ export function useModalFocus(active: boolean) {
   useEffect(() => {
     const rememberNonModalFocus = (event: FocusEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target && !target.closest("[role='dialog'][aria-modal='true']")) returnFocusRef.current = target;
+      if (target && target !== document.body && !target.closest("[role='dialog'][aria-modal='true']")) {
+        returnFocusRef.current = target;
+      }
     };
     const current = document.activeElement as HTMLElement | null;
     if (current && current !== document.body) returnFocusRef.current = current;
@@ -29,7 +31,9 @@ export function useModalFocus(active: boolean) {
   useEffect(() => {
     if (!active) return;
     const currentlyFocused = document.activeElement as HTMLElement | null;
-    const previouslyFocused = currentlyFocused?.closest("[role='dialog'][aria-modal='true']")
+    const previouslyFocused = !currentlyFocused || currentlyFocused === document.body
+      ? returnFocusRef.current
+      : currentlyFocused.closest("[role='dialog'][aria-modal='true']")
       ? returnFocusRef.current
       : currentlyFocused;
     let dialog: HTMLElement | null = null;
@@ -64,7 +68,11 @@ export function useModalFocus(active: boolean) {
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", trapFocus);
-      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+      if (previouslyFocused?.isConnected) {
+        window.setTimeout(() => {
+          if (previouslyFocused.isConnected) previouslyFocused.focus();
+        }, 0);
+      }
     };
   }, [active]);
 }

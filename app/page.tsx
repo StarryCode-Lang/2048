@@ -4,38 +4,38 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type CSSPro
 import { audioContextClass, beginAmbientLoop, playMergeTone, stopMusicEngine, type MusicEngine } from "./audio/ambient";
 import { GlassMenu } from "./components/glass-menu";
 import { nextSeededRandom, spawnRandomTile } from "./game/random";
-import { copyBoard, countEmpty, emptyBoard, hasMoves, isValidBoard, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game/engine";
+import { copyBoard, countEmpty, emptyBoard, hasMoves, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game/engine";
 import { parseStoredGame, serializeStoredGame } from "./game/storage";
 import { AI_SPEEDS, aiBudgetFor, isEndgameSearch } from "./ai/timing";
+import { DIRECTION_ARROWS, chooseFallbackMove, snakePositions, type AiCorner } from "./ai/fallback";
 import { LANGUAGES, TRANSLATIONS, isLanguage, type Language } from "./i18n/messages";
 import { useModalFocus } from "./hooks/use-modal-focus";
-import { reconstructReplay } from "./replay/reconstruct";
 import { parseReplayPayload } from "./replay/import";
+import {
+  bytesToBase64,
+  createGameReplay,
+  replayMatchesSnapshot,
+  restoreGameReplay,
+  serializeGameReplay,
+  type ActiveGameReplay,
+} from "./replay/session";
 import {
   getPreferredReplay,
   getReplaySummary,
   packEvents,
   packTrace,
   saveReplayChampions,
-  unpackEvents,
-  unpackTrace,
   type DirectionCode,
   type ReplayCandidate,
-  type ReplayEvent,
   type ReplaySummary,
-  type ReplayTrace,
 } from "./replay/log";
 
 type Snapshot = { board: Board; score: number; moves: number; rngState: number };
-type AiCorner = 0 | 1 | 2 | 3;
 
 const DEFAULT_SIZE = 4;
-const AI_ALGORITHM = "expectimax-v20-packed-bitboard";
-const GAME_RULES = "official-2048-v1";
 const VALID_SIZES = [4, 5, 6] as const;
 const SAVE_KEY = "2048-save-v2";
 const BESTS_KEY = "2048-bests-v1";
-const DIRECTION_ARROWS: Record<Direction, string> = { up: "↑", down: "↓", left: "←", right: "→" };
 
 function preferredLanguage(values: readonly string[]): Language {
   for (const value of values) {
@@ -74,169 +74,11 @@ function createGameSeed() {
   return ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0) || 1;
 }
 
-const DIRECTIONS: Direction[] = ["down", "left", "right", "up"];
-
-function snakePositions(size: number, corner: AiCorner): CellPoint[] {
-  const top = corner < 2;
-  const left = corner % 2 === 0;
-  const positions: CellPoint[] = [];
-  for (let rowStep = 0; rowStep < size; rowStep += 1) {
-    const row = top ? rowStep : size - 1 - rowStep;
-    const startsFromLeft = rowStep % 2 === 0 ? left : !left;
-    for (let colStep = 0; colStep < size; colStep += 1) {
-      positions.push({ row, col: startsFromLeft ? colStep : size - 1 - colStep });
-    }
-  }
-  return positions;
-}
-
-function chooseFallbackMove(board: Board, anchor: AiCorner): Direction | null {
-  const legal = DIRECTIONS.flatMap((direction, order) => {
-    const moved = moveBoard(board, direction, 0);
-    return sameBoard(board, moved.board) ? [] : [{ direction, order, moved }];
-  });
-  const anchorPoint = snakePositions(board.length, anchor)[0];
-  const maxValue = Math.max(...board.flat());
-  const anchored = maxValue >= 128 && board[anchorPoint.row][anchorPoint.col] === maxValue;
-  const preserving = anchored
-    ? legal.filter(({ moved }) => moved.board[anchorPoint.row][anchorPoint.col] >= maxValue)
-    : [];
-  const candidates = preserving.length ? preserving : legal;
-  let bestDirection: Direction | null = null;
-  let bestScore = Number.NEGATIVE_INFINITY;
-  candidates.forEach(({ direction, order, moved }) => {
-    const routeScore = snakePositions(board.length, anchor).reduce((total, point, index) => {
-      const power = moved.board[point.row][point.col] ? Math.log2(moved.board[point.row][point.col]) : 0;
-      return total + power * power * Math.pow(.78, index) * 100;
-    }, 0);
-    const score = routeScore + countEmpty(moved.board) * 500 + moved.gained * 8 - order * .001;
-    if (score > bestScore) { bestScore = score; bestDirection = direction; }
-  });
-  return bestDirection;
-}
-
 type AiDecision = { direction: Direction | null; anchor: AiCorner; strategy: "lock" | "recover"; depth: number; nodes: number; elapsedMs: number; movableTiles: number; confidence: number };
-type AiEngine = "search" | "expert";
+type AiEngine = "search" | "adaptive";
 type AiPending = { id: number; resolve: (decision: AiDecision | null) => void };
 type AiPrefetch = { key: string; promise: Promise<AiDecision | null> };
-type ActiveGameReplay = {
-  algorithm: string;
-  rules: string;
-  size: number;
-  seed: number;
-  speedIndex: number;
-  initialBoard: Board;
-  initialRngState: number;
-  initialScore: number;
-  initialMoves: number;
-  events: ReplayEvent[];
-  trace: ReplayTrace[];
-};
-
 const DIRECTION_CODES: Record<Direction, DirectionCode> = { up: 0, right: 1, down: 2, left: 3 };
-
-function bytesToBase64(bytes: Uint8Array) {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function base64ToBytes(value: unknown) {
-  if (typeof value !== "string") return new Uint8Array();
-  const binary = atob(value);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-function createGameReplay(size: number, seed: number, speedIndex: number, board: Board, rngState: number, score = 0, moves = 0): ActiveGameReplay {
-  return {
-    algorithm: AI_ALGORITHM,
-    rules: GAME_RULES,
-    size,
-    seed,
-    speedIndex,
-    initialBoard: copyBoard(board),
-    initialRngState: rngState >>> 0,
-    initialScore: score,
-    initialMoves: moves,
-    events: [],
-    trace: [],
-  };
-}
-
-function serializeGameReplay(replay: ActiveGameReplay | null) {
-  if (!replay) return null;
-  return {
-    algorithm: replay.algorithm,
-    rules: replay.rules,
-    size: replay.size,
-    seed: replay.seed,
-    speedIndex: replay.speedIndex,
-    initialBoard: replay.initialBoard,
-    initialRngState: replay.initialRngState,
-    initialScore: replay.initialScore,
-    initialMoves: replay.initialMoves,
-    eventCount: replay.events.length,
-    events: bytesToBase64(packEvents(replay.events)),
-    trace: bytesToBase64(packTrace(replay.trace)),
-  };
-}
-
-function restoreGameReplay(value: unknown): ActiveGameReplay | null {
-  try {
-    if (!value || typeof value !== "object") return null;
-    const saved = value as Record<string, unknown>;
-    const savedSize = Number(saved.size);
-    const initialScore = Number(saved.initialScore);
-    const initialMoves = Number(saved.initialMoves);
-    const seed = Number(saved.seed);
-    const initialRngState = Number(saved.initialRngState);
-    const speedIndex = Number(saved.speedIndex);
-    if (!VALID_SIZES.includes(savedSize as 4 | 5 | 6)
-      || !isValidBoard(saved.initialBoard, savedSize)
-      || !Number.isSafeInteger(initialScore) || initialScore < 0
-      || !Number.isSafeInteger(initialMoves) || initialMoves < 0
-      || !Number.isSafeInteger(seed) || seed <= 0 || seed > 0xffffffff
-      || !Number.isSafeInteger(initialRngState) || initialRngState <= 0 || initialRngState > 0xffffffff
-      || typeof saved.events !== "string"
-      || typeof saved.trace !== "string") return null;
-    const events = unpackEvents(base64ToBytes(saved.events));
-    const trace = unpackTrace(base64ToBytes(saved.trace));
-    if (events.length !== Number(saved.eventCount) || trace.length !== events.length) return null;
-    return {
-      algorithm: typeof saved.algorithm === "string" ? saved.algorithm : "expectimax-v17-score-first-escape",
-      rules: typeof saved.rules === "string" ? saved.rules : "classic-2048-distribution-v1",
-      size: savedSize,
-      seed: seed >>> 0,
-      speedIndex: Number.isInteger(speedIndex) ? Math.min(AI_SPEEDS.length - 1, Math.max(0, speedIndex)) : 0,
-      initialBoard: (saved.initialBoard as Board).map((row) => [...row]),
-      initialRngState: initialRngState >>> 0,
-      initialScore,
-      initialMoves,
-      events,
-      trace,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function replayMatchesSnapshot(replay: ActiveGameReplay, snapshot: Snapshot) {
-  try {
-    const reconstructed = reconstructReplay({
-      board: replay.initialBoard,
-      score: replay.initialScore,
-      moves: replay.initialMoves,
-      rngState: replay.initialRngState,
-    }, replay.events);
-    return replay.size === snapshot.board.length
-      && sameBoard(reconstructed.board, snapshot.board)
-      && reconstructed.score === snapshot.score
-      && reconstructed.moves === snapshot.moves
-      && reconstructed.rngState === (snapshot.rngState >>> 0);
-  } catch {
-    return false;
-  }
-}
 
 function tileClass(value: number) {
   return `${value > 2048 ? "tile-super" : `tile-${value}`} tile-digits-${String(value).length}`;
@@ -309,7 +151,13 @@ export default function Home() {
   const toastTimerRef = useRef<number | null>(null);
   const championSaveTimerRef = useRef<number | null>(null);
   const pendingReplayCandidateRef = useRef<ReplayCandidate | null>(null);
+  const helpButtonRef = useRef<HTMLButtonElement | null>(null);
   const gameOver = ready && !hasMoves(board);
+
+  const closeHelp = useCallback(() => {
+    setHelpOpen(false);
+    window.setTimeout(() => helpButtonRef.current?.focus(), 0);
+  }, []);
 
   useModalFocus(confirmNew || helpOpen || winOpen || gameOver);
 
@@ -367,7 +215,8 @@ export default function Home() {
         setLanguage(isLanguage(savedLanguage) ? savedLanguage : preferredLanguage(navigator.languages));
         const savedSpeedIndex = storedInteger(localStorage.getItem("2048-ai-speed"), 1, AI_SPEEDS.length - 1);
         setAiSpeedIndex(savedSpeedIndex);
-        setAiEngine(localStorage.getItem("2048-ai-engine") === "expert" ? "expert" : "search");
+        const savedEngine = localStorage.getItem("2048-ai-engine");
+        setAiEngine(savedEngine === "adaptive" || savedEngine === "expert" ? "adaptive" : "search");
         const parsed = parseStoredGame(localStorage.getItem(SAVE_KEY));
         if (parsed) {
             const savedSize = parsed.size;
@@ -412,7 +261,7 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* offline support is optional */ });
+    void navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => { /* offline support is optional */ });
   }, []);
 
   useEffect(() => {
@@ -728,7 +577,13 @@ export default function Home() {
     if (activeGameReplayRef.current) {
       const replay = activeGameReplayRef.current;
       const decision = lastAiDecisionRef.current;
-      replay.events.push({ kind: "move", direction: DIRECTION_CODES[direction], source, speedIndex: source === "ai" ? aiSpeedIndex : 0 });
+      replay.events.push({
+        kind: "move",
+        direction: DIRECTION_CODES[direction],
+        source,
+        speedIndex: source === "ai" ? aiSpeedIndex : 0,
+        ...(source === "ai" ? { engine: aiEngine } : {}),
+      });
       replay.trace.push({
         depth: source === "ai" ? decision?.depth ?? 0 : 0,
         elapsedMs: source === "ai" ? decision?.elapsedMs ?? 0 : 0,
@@ -834,11 +689,11 @@ export default function Home() {
         move(direction);
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") { event.preventDefault(); undo(); }
-      if (event.key === "Escape") { setOpenMenu(null); setHelpOpen(false); setConfirmNew(false); setWinOpen(false); setPendingSize(null); }
+      if (event.key === "Escape") { setOpenMenu(null); closeHelp(); setConfirmNew(false); setWinOpen(false); setPendingSize(null); }
     };
     window.addEventListener("keydown", onKey, { passive: false });
     return () => window.removeEventListener("keydown", onKey);
-  }, [move, musicPlaying, soundOn, startMusic, undo]);
+  }, [closeHelp, move, musicPlaying, soundOn, startMusic, undo]);
 
   const startNew = (targetSize = sizeRef.current) => {
     if (championSaveTimerRef.current) {
@@ -1016,6 +871,10 @@ export default function Home() {
       setContinued(parsed.maxTile >= 2048);
       setWinOpen(false);
       setAiMoveCount(parsed.events.filter((entry) => entry.kind === "move" && entry.source === "ai").length);
+      const importedEngine = [...parsed.events].reverse().flatMap((entry) => (
+        entry.kind === "move" && entry.source === "ai" ? [entry.engine] : []
+      ))[0];
+      setAiEngine(importedEngine === "adaptive" || importedEngine === "expert" ? "adaptive" : "search");
       setAiTrail([]);
       setAiStats({ nodes: 0, elapsedMs: 0, movableTiles: 0 });
       activeGameReplayRef.current = {
@@ -1051,7 +910,7 @@ export default function Home() {
       const active = activeGameReplayRef.current;
       if (!active) return;
       const payload = JSON.stringify({
-          format: "2048-full-replay-v3",
+          format: "2048-full-replay-v4",
           rules: active.rules,
           algorithm: active.algorithm,
           size: active.size,
@@ -1084,7 +943,7 @@ export default function Home() {
       };
       const isFullSession = Boolean(replay.eventBytes);
       const payload = JSON.stringify({
-        format: isFullSession && replay.rules === "official-2048-v1" ? "2048-full-replay-v3" : isFullSession ? "2048-full-replay-v2" : "2048-ai-replay-v1",
+        format: isFullSession && replay.rules === "official-2048-v1" ? "2048-full-replay-v4" : isFullSession ? "2048-full-replay-v2" : "2048-ai-replay-v1",
         rules: replay.rules ?? "classic-2048-distribution-v1",
         algorithm: replay.algorithm,
         size: replay.size,
@@ -1140,7 +999,7 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="mode-switcher" aria-label={ui.boardSize}>
+        <div className="mode-switcher" role="group" aria-label={ui.boardSize} aria-hidden={winOpen || gameOver || undefined} inert={winOpen || gameOver || undefined}>
           {VALID_SIZES.map((modeSize) => (
             <button
               key={modeSize}
@@ -1154,7 +1013,7 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="action-row">
+        <div className="action-row" aria-hidden={winOpen || gameOver || undefined} inert={winOpen || gameOver || undefined}>
           <div className="mini-actions">
             <button className="icon-button" onClick={undo} disabled={!history.length || animating || aiRunning} aria-label={aiRunning ? ui.aiUndoBlocked : ui.undo} data-tooltip={aiRunning ? ui.aiUndoBlocked : ui.undo}>↶</button>
             <button className={`icon-button sound-button${musicPlaying ? " is-playing" : ""}`} onClick={toggleSound} aria-label={musicPlaying ? ui.soundOff : ui.soundOn} data-tooltip={musicPlaying ? ui.soundOff : ui.soundOn}>{musicPlaying ? "♫" : "⊘"}</button>
@@ -1169,17 +1028,17 @@ export default function Home() {
               onToggle={() => setOpenMenu((current) => current === "language" ? null : "language")}
               onChange={(value) => { setLanguage(value as Language); setOpenMenu(null); }}
             />
-            <button className="icon-button" onClick={() => { pauseAi(); setOpenMenu(null); setHelpOpen(true); }} aria-label={ui.help} data-tooltip={ui.help}>?</button>
+            <button ref={helpButtonRef} className="icon-button" onClick={() => { pauseAi(); setOpenMenu(null); setHelpOpen(true); }} aria-label={ui.help} data-tooltip={ui.help}>?</button>
           </div>
           <button className="primary-button" onClick={requestNew} disabled={animating}>{ui.newGame}</button>
         </div>
 
-        <div className={`ai-bar${aiRunning ? " active" : ""}`}>
+        <div className={`ai-bar${aiRunning ? " active" : ""}`} aria-hidden={winOpen || gameOver || undefined} inert={winOpen || gameOver || undefined}>
           <div className="ai-identity">
             <span className="ai-core" aria-hidden="true">AI</span>
             <div>
               <strong>{ui.aiChallenge}</strong>
-            <small>{aiRunning ? `${aiEngine === "expert" ? ui.engineExpert : ui.engineSearch} · ${aiThought}` : `${aiEngine === "expert" ? ui.engineExpert : ui.engineSearch} · ${ui.fairForward} · ${ui.nextTarget} ${nextTarget}`}</small>
+            <small>{aiRunning ? `${aiEngine === "adaptive" ? ui.engineExpert : ui.engineSearch} · ${aiThought}` : `${aiEngine === "adaptive" ? ui.engineExpert : ui.engineSearch} · ${ui.fairForward} · ${ui.nextTarget} ${nextTarget}`}</small>
             </div>
           </div>
           <div className="ai-actions">
@@ -1189,7 +1048,7 @@ export default function Home() {
               label={ui.aiEngine}
               tooltip={ui.aiEngine}
               open={openMenu === "engine"}
-              options={[{ value: "search", label: ui.engineSearch, short: "⌕" }, { value: "expert", label: ui.engineExpert, short: "✦" }]}
+              options={[{ value: "search", label: ui.engineSearch, short: "⌕" }, { value: "adaptive", label: ui.engineExpert, short: "✦" }]}
               onToggle={() => setOpenMenu((current) => current === "engine" ? null : "engine")}
               onChange={(value) => { pauseAi(ui.paused); setAiEngine(value as AiEngine); setOpenMenu(null); }}
             />
@@ -1206,7 +1065,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="ai-route-panel" aria-label={ui.routeLabel}>
+        <div className="ai-route-panel" aria-label={ui.routeLabel} aria-hidden={winOpen || gameOver || undefined} inert={winOpen || gameOver || undefined}>
             <div
               className="route-map"
               style={{ "--route-size": size } as CSSProperties}
@@ -1293,7 +1152,7 @@ export default function Home() {
               </div>
             ) : null))}
           </div>
-          <p id="board-state" className="sr-only" aria-live="polite">{board.map((row) => row.join(", ")).join(" / ")}</p>
+          <p id="board-state" className="sr-only">{board.map((row) => row.join(", ")).join(" / ")}</p>
           {winOpen && (
             <div className="board-message win-message" role="dialog" aria-modal="true" aria-live="assertive" aria-label={ui.winAria}>
               <span className="spark" aria-hidden="true">✦</span>
@@ -1317,7 +1176,7 @@ export default function Home() {
           )}
           </div>
 
-          <div className="status-row" aria-label={ui.roundStats} aria-live="polite">
+          <div className="status-row" aria-label={ui.roundStats} aria-live="polite" aria-atomic="true">
             <span>{ui.steps} <strong>{moves}</strong></span>
             <i />
             <span>{ui.maxTile} <strong>{displayedMaxTile}</strong></span>
@@ -1351,9 +1210,9 @@ export default function Home() {
       )}
 
       {helpOpen && (
-        <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setHelpOpen(false); }}>
+        <div className="sheet-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) closeHelp(); }}>
           <div className="sheet help-sheet" role="dialog" aria-modal="true" aria-labelledby="help-title">
-            <button autoFocus className="close-button" onClick={() => setHelpOpen(false)} aria-label={ui.closeHelp}>×</button>
+            <button autoFocus className="close-button" onClick={closeHelp} aria-label={ui.closeHelp}>×</button>
             <p className="sheet-kicker">{ui.helpKicker}</p>
             <h2 id="help-title">{ui.howTo}</h2>
             <ol>
@@ -1364,7 +1223,7 @@ export default function Home() {
               <li><b>AI</b><span>{ui.helpAi}</span></li>
             </ol>
             <p className="keyboard-tip">{ui.keyboard}</p>
-            <button className="wide-button" onClick={() => setHelpOpen(false)}>{ui.understood}</button>
+            <button className="wide-button" onClick={closeHelp}>{ui.understood}</button>
           </div>
         </div>
       )}

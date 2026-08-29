@@ -25,7 +25,7 @@ test("diagnostic trace stays at five bytes per move", () => {
 
 test("full-session event stream preserves AI, human, speed, and undo actions", () => {
   const events = [
-    { kind: "move", direction: 0, source: "ai", speedIndex: 0 },
+    { kind: "move", direction: 0, source: "ai", speedIndex: 0, engine: "adaptive" },
     { kind: "move", direction: 3, source: "human", speedIndex: 0 },
     { kind: "undo", source: "human" },
     { kind: "move", direction: 2, source: "ai", speedIndex: 2 },

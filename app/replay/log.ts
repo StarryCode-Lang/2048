@@ -1,7 +1,7 @@
 export type DirectionCode = 0 | 1 | 2 | 3;
 
 export type ReplayEvent =
-  | { kind: "move"; direction: DirectionCode; source: "ai" | "human"; speedIndex: number }
+  | { kind: "move"; direction: DirectionCode; source: "ai" | "human"; speedIndex: number; engine?: "search" | "expert" | "adaptive" }
   | { kind: "undo"; source: "human" };
 
 export type ReplayTrace = {
@@ -84,18 +84,21 @@ export function packEvents(events: ReplayEvent[]) {
   return Uint8Array.from(events, (event) => {
     if (event.kind === "undo") return 8;
     const source = event.source === "human" ? 4 : 0;
-    return event.direction | source | ((Math.min(3, Math.max(0, event.speedIndex)) & 3) << 4);
+    const engine = event.engine === "expert" ? 1 : event.engine === "adaptive" ? 2 : 0;
+    return event.direction | source | ((Math.min(3, Math.max(0, event.speedIndex)) & 3) << 4) | (engine << 6);
   });
 }
 
 export function unpackEvents(packed: Uint8Array) {
   return Array.from(packed, (value): ReplayEvent => {
     if (value & 8) return { kind: "undo", source: "human" };
+    const engineCode = (value >> 6) & 3;
     return {
       kind: "move",
       direction: (value & 3) as DirectionCode,
       source: value & 4 ? "human" : "ai",
       speedIndex: (value >> 4) & 3,
+      ...(engineCode === 1 ? { engine: "expert" as const } : engineCode === 2 ? { engine: "adaptive" as const } : {}),
     };
   });
 }

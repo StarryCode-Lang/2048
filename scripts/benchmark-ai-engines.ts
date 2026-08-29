@@ -4,7 +4,7 @@ const maxMoves = Math.max(60, Number(process.argv[2] ?? 300));
 const nodeBudget = Math.max(256, Number(process.argv[3] ?? 1024));
 const seeds = [131556, 2048, 0x2048cafe, 0x5eed1234, 17, 4096, 8675309, 0xf00dcafe];
 
-function summarize(engine: "search" | "expert") {
+function summarize(engine: "search" | "expert" | "adaptive") {
   const started = performance.now();
   const results = seeds.map((seed) => simulateAiGame({ seed, maxMoves, nodeBudget, engine }));
   const scores = results.map((result) => result.score).sort((a, b) => a - b);
@@ -22,8 +22,20 @@ function summarize(engine: "search" | "expert") {
 
 const search = summarize("search");
 const expert = summarize("expert");
-console.log(JSON.stringify({ maxMoves, nodeBudget, search, expert, delta: {
-  averageScore: expert.averageScore - search.averageScore,
-  reached1024: expert.reached1024 - search.reached1024,
-  elapsedMs: expert.elapsedMs - search.elapsedMs,
-} }, null, 2));
+const adaptive = summarize("adaptive");
+const deltaFromSearch = (candidate: typeof search) => ({
+  averageScore: candidate.averageScore - search.averageScore,
+  reached1024: candidate.reached1024 - search.reached1024,
+  elapsedMs: candidate.elapsedMs - search.elapsedMs,
+});
+console.log(JSON.stringify({
+  maxMoves,
+  nodeBudget,
+  search,
+  expert,
+  adaptive,
+  delta: {
+    expert: deltaFromSearch(expert),
+    adaptive: deltaFromSearch(adaptive),
+  },
+}, null, 2));

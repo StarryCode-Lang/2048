@@ -56,8 +56,10 @@ test("renders production HTML and every emitted asset is served by the Worker", 
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
   assert.equal(response.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
   assert.equal(response.headers.get("permissions-policy"), "camera=(), geolocation=(), microphone=()");
+  assert.match(response.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
   assert.match(
     response.headers.get("content-type") ?? "",
     /^text\/html\b/i,
@@ -81,6 +83,7 @@ test("renders production HTML and every emitted asset is served by the Worker", 
     const asset = await worker.fetch(new Request(`http://localhost${pathname}`), env, ctx);
     assert.equal(asset.status, 200, `${pathname} was not served`);
     assert.equal(asset.headers.get("x-content-type-options"), "nosniff", `${pathname} is missing security headers`);
+    assert.equal(asset.headers.get("x-frame-options"), "DENY", `${pathname} is missing frame protection`);
     assert.notEqual(asset.headers.get("content-type"), "text/plain;charset=UTF-8", `${pathname} has a fallback content type`);
   }
 });
