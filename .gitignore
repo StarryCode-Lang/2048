@@ -60,3 +60,13 @@ Desktop.ini
 # local packages and temporary files
 *.tgz
 *.tmp
+*.log
+*.pid
+*.pid.lock
+*.orig
+*.rej
+/.cache/
+/.npm/
+/.turbo/
+/tmp/
+/logs/
