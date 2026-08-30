@@ -121,7 +121,7 @@ export function GlassMenu({
         }}
       >
         <span dir={selected.dir}>{compact ? selected.short ?? selected.label : selected.label}</span>
-        <i aria-hidden="true">⌄</i>
+        <svg className="menu-chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 4.5 3.5 3 3.5-3" /></svg>
       </button>
       {open && typeof document !== "undefined" && createPortal(
         <div
@@ -163,7 +163,7 @@ export function GlassMenu({
               }}
             >
               <span>{option.label}</span>
-              <i aria-hidden="true">{option.value === value ? "✓" : ""}</i>
+              <i aria-hidden="true">{option.value === value && <svg className="menu-check" viewBox="0 0 16 16"><path d="m3 8.5 3.1 3L13 4.8" /></svg>}</i>
             </button>
           ))}
         </div>,
