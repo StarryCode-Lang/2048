@@ -88,7 +88,7 @@ worker/          # Cloudflare Worker 入口
 docs/            # AI 架构、研究依据与验证合同
 ```
 
-根目录只保留框架、TypeScript、样式工具、许可证及部署流程必须读取的配置文件；依赖、构建结果、发布缓存、测试报告和编辑器临时文件均由 `.gitignore` 排除。源码边界与文件形状见 [`docs/architecture.md`](./docs/architecture.md)，AI 的信息边界、实现取舍和基准方法见 [`docs/ai.md`](./docs/ai.md)，贡献与发布流程见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)，安全问题报告方式见 [`SECURITY.md`](./SECURITY.md)，项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)，第三方授权见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
+根目录只保留框架、TypeScript、样式工具、许可证及部署流程必须读取的配置文件；依赖、构建结果、发布缓存、测试报告和编辑器临时文件均由 `.gitignore` 排除。源码边界与文件形状见 [`docs/architecture.md`](./docs/architecture.md)，AI 的信息边界、实现取舍和基准方法见 [`docs/ai.md`](./docs/ai.md)，贡献与发布流程见 [`docs/project/CONTRIBUTING.md`](./docs/project/CONTRIBUTING.md)，安全问题报告方式见 [`docs/project/SECURITY.md`](./docs/project/SECURITY.md)，项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)，第三方授权见 [`docs/project/THIRD_PARTY_NOTICES.md`](./docs/project/THIRD_PARTY_NOTICES.md)。
 
 ## 许可证
 

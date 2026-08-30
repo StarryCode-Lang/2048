@@ -5,6 +5,7 @@
 - 整理 UI 原语目录：玻璃菜单与控件图标归入 `app/ui/`，页面控制器不再内嵌通用图标实现。
 - 新增源码形状门槛 `npm run check:structure`，持续限制页面、样式、AI 与国际化文件的长度，并把结构说明集中到 `docs/architecture.md`。
 - 同步 README、AGENTS、贡献、发布、可访问性、AI 与存储文档的当前版本基线。
+- 将贡献、安全与第三方声明集中到 `docs/project/`，根目录仅保留必要入口与工具配置。
 
 ## v2.0.0 initial release (2026-08-28)
 
