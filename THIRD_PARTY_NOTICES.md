@@ -1,5 +1,7 @@
 # Third-Party Notices
 
+适用基线：`v2.0.0`。第三方来源或实现边界变化时，必须在对应版本的 `CHANGELOG.md` 中记录。
+
 This project is an independent implementation of the 2048 game and includes ideas adapted from the open-source projects below.
 
 ## 2048

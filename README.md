@@ -73,7 +73,7 @@ npm run verify
 app/
 ├── ai/          # AI 搜索 Worker、4×4 位棋盘、自适应专家、回退与确定性模拟
 ├── audio/       # 背景音乐与合并音效
-├── components/  # 可复用界面组件
+├── ui/          # 可复用界面原语（菜单、控件图标与玻璃表面）
 ├── game/        # 官方规则、移动、随机生成与版本化存档
 ├── hooks/       # 焦点管理等交互 Hook
 ├── i18n/        # 六种界面语言
@@ -88,7 +88,7 @@ worker/          # Cloudflare Worker 入口
 docs/            # AI 架构、研究依据与验证合同
 ```
 
-根目录只保留框架、TypeScript、样式工具、许可证及部署流程必须读取的配置文件；依赖、构建结果、发布缓存、测试报告和编辑器临时文件均由 `.gitignore` 排除。AI 的信息边界、实现取舍和基准方法见 [`docs/ai.md`](./docs/ai.md)，贡献与发布流程见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)，安全问题报告方式见 [`SECURITY.md`](./SECURITY.md)，项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)，第三方授权见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
+根目录只保留框架、TypeScript、样式工具、许可证及部署流程必须读取的配置文件；依赖、构建结果、发布缓存、测试报告和编辑器临时文件均由 `.gitignore` 排除。源码边界与文件形状见 [`docs/architecture.md`](./docs/architecture.md)，AI 的信息边界、实现取舍和基准方法见 [`docs/ai.md`](./docs/ai.md)，贡献与发布流程见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)，安全问题报告方式见 [`SECURITY.md`](./SECURITY.md)，项目约束和交接说明见 [`AGENTS.md`](./AGENTS.md)，第三方授权见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
 
 ## 许可证
 

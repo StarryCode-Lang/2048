@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { audioContextClass, beginAmbientLoop, playMergeTone, stopMusicEngine, type MusicEngine } from "./audio/ambient";
-import { GlassMenu } from "./components/glass-menu";
+import { GlassMenu } from "./ui/glass-menu";
+import { ControlGlyph } from "./ui/control-glyph";
 import { nextSeededRandom, spawnRandomTile } from "./game/random";
+import { createGameSeed, freshBoardOfSize, preferredLanguage, safeScore, storedInteger, storedRecord } from "./game/bootstrap";
 import { copyBoard, countEmpty, emptyBoard, hasMoves, moveBoard, sameBoard, type Board, type CellPoint, type Direction, type TileMotion } from "./game/engine";
 import { parseStoredGame, serializeStoredGame } from "./game/storage";
 import { AI_SPEEDS, aiBudgetFor, isEndgameSearch } from "./ai/timing";
@@ -37,43 +39,6 @@ const VALID_SIZES = [4, 5, 6] as const;
 const SAVE_KEY = "2048-save-v2";
 const BESTS_KEY = "2048-bests-v1";
 
-function preferredLanguage(values: readonly string[]): Language {
-  for (const value of values) {
-    const language = value.toLowerCase().split("-")[0];
-    if (isLanguage(language)) return language;
-  }
-  return "zh";
-}
-
-function storedInteger(value: string | null, fallback: number, maximum: number) {
-  if (value === null) return fallback;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 && parsed <= maximum ? parsed : fallback;
-}
-
-function safeScore(value: unknown, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
-}
-
-function storedRecord(key: string): Record<string, unknown> {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) || "{}");
-    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  } catch {
-    return {};
-  }
-}
-
-function freshBoardOfSize(size: number, random: () => number = Math.random): Board {
-  return spawnRandomTile(spawnRandomTile(emptyBoard(size), random).board, random).board;
-}
-
-function createGameSeed() {
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) return crypto.getRandomValues(new Uint32Array(1))[0] || 1;
-  return ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0) || 1;
-}
-
 type AiDecision = { direction: Direction | null; anchor: AiCorner; strategy: "lock" | "recover"; depth: number; nodes: number; elapsedMs: number; movableTiles: number; confidence: number };
 type AiEngine = "search" | "adaptive";
 type AiPending = { id: number; resolve: (decision: AiDecision | null) => void };
@@ -82,20 +47,6 @@ const DIRECTION_CODES: Record<Direction, DirectionCode> = { up: 0, right: 1, dow
 
 function tileClass(value: number) {
   return `${value > 2048 ? "tile-super" : `tile-${value}`} tile-digits-${String(value).length}`;
-}
-
-type ControlIcon = "undo" | "volume" | "mute" | "sun" | "moon" | "help";
-
-function ControlGlyph({ name }: { name: ControlIcon }) {
-  const paths: Record<ControlIcon, ReactNode> = {
-    undo: <><path d="M9 8H5V4" /><path d="M5.4 8.1A7 7 0 1 1 5.8 17" /></>,
-    volume: <><path d="M5 10v4h3l4 3V7L8 10H5Z" /><path d="M15 9.5a4 4 0 0 1 0 5" /><path d="M17.5 7a7.5 7.5 0 0 1 0 10" /></>,
-    mute: <><path d="M5 10v4h3l4 3V7L8 10H5Z" /><path d="m16 10 4 4m0-4-4 4" /></>,
-    sun: <><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
-    moon: <path d="M19.1 15.7A8 8 0 0 1 8.3 4.9a7.3 7.3 0 1 0 10.8 10.8Z" />,
-    help: <><circle cx="12" cy="12" r="9" /><path d="M9.8 9a2.3 2.3 0 0 1 4.5.7c0 1.8-2.3 2-2.3 3.7" /><path d="M12 17h.01" /></>,
-  };
-  return <svg className="control-glyph" viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
 export default function Home() {
@@ -226,7 +177,7 @@ export default function Home() {
         const savedTheme = localStorage.getItem("2048-theme");
         setDark(savedTheme === "dark" || (savedTheme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches));
         const savedLanguage = localStorage.getItem("2048-language");
-        setLanguage(isLanguage(savedLanguage) ? savedLanguage : preferredLanguage(navigator.languages));
+        setLanguage(isLanguage(savedLanguage) ? savedLanguage : preferredLanguage(navigator.languages, isLanguage));
         const savedSpeedIndex = storedInteger(localStorage.getItem("2048-ai-speed"), 1, AI_SPEEDS.length - 1);
         setAiSpeedIndex(savedSpeedIndex);
         const savedEngine = localStorage.getItem("2048-ai-engine");
